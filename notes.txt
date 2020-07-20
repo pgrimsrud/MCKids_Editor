@@ -1,0 +1,837 @@
+arches end up at 0x73AE on the system bus
+0xB60D on the system bus is 0x13620 in the rom and it is part of stage 1-1
+0xB93D on the system bus is 0x1394D in the rom and it is part of stage 1-1
+0x6DE is the stage number
+
+0xA7B8 (0x27C8 in the rom) seems to be a table of what the overworld spots are/do. indexed by stage number
+0xA77F (0x278F in the rom) is a look up table for the stage info,
+    it gets copied to 0x9D and 0x77A. later to 0x6B1 and pushed to the stack.
+0xA13D (0x214D in the rom) is a table of starting X positions indexed by the stage info index
+0xA19A (0x21AA in the rom) is a table of starting Y positions indexed by the stage info index
+0xA254 (0x2264 in the rom) is a table of flags (not well understood)
+    bit 0 - locks horizontal scrolling
+    bit 3 - locks the screen at the top
+    bit 7 - locks movement
+0xA4DF (0x24FF in the rom) is a table of something?
+0xA53C (0x254C in the rom) is a table of lower bytes of the level data pointer
+0xA599 (0x25A9 in the rom) is a table of corresponding upper bytes
+0xA5F6 (0x2606 in the rom) is a table of bank info?
+
+stage 1-1 at 0xE010 in the rom
+
+the shit is not byte aligned of course. I see the first arch in 1-1 comes basically from 0xE1D5,
+but it is really it is 0xE1D4[0] << 7 | 0xE1D5[7:1] (0x41 the arch)
+the next byte I could find that described a tile was at 0xE1DE[3:0] << 4 | 0xE1DF[7:4]
+which is a 0x94 a left side mountain slope with a wave fade background used a couple of times at the end of the stage
+
+
+structure of the level data:
+byte
+   0[7:0] stage width (in tiles)
+   1[7:0] stage height (in tiles)
+   2-5 chr bank number for each chunk of the pattern table 1/4 each
+   2 stage foreground type
+     indexes to bank 1 pointer table. lower byte array 0xA08D
+                                      upper byte array 0xA0B9
+                                      bank array       0xA0E5
+     0 puzzle land? or nothing
+   3 more bank information for foreground? and some background, at least attributes?
+   4-5[7:6] background tile bank information
+   5[5:0] tile information
+   This is a bit of a guess and needs confirmation:
+   6[7:4] the number of offset bits for memcpy entries
+   6[3:0] the number of length bits for memcpy entries
+   7[7] 1
+   7[6:0]-8[7] most likely the count of the number of spawns
+
+   8[6] 1
+   8[5:2] x screen of the special block
+   8[1:0]-9[7:6] x position of the special block within the screen
+
+   9[5] 1
+   9[4:1] x screen of gopher
+   9[0]-A[7:5] x position of gopher within the screen
+
+   A[4] 1
+   A[3:0] x screen of the special block slot
+   B[7:4] x position of the special block within the screen
+
+   B[3] 1
+   B[2:0]-C[7] x screen of snail
+   C[6:3] x position of snail within the screen
+
+   C[2]
+   C[1:0]-D[7:6] x screen of big springboard
+   D[5:2] x position of big springboard within the screen
+ 
+   D[1]
+   D[0]-E[7:5] flower enemy
+   E[4:1]
+
+   E[0] 
+   F[7:4] riding platform
+   F[3:0]
+
+   10[7]
+   10[6:3] goal arch
+   10[2:0]-11[7]
+
+   11[6] 1
+   11[5:2] special block y
+   11[1:0]-12[7:6] 
+
+   12[5] 1
+   12[4:1] gopher y
+   12[0]-13[7:5]
+
+   13[4] 1
+   13[3:0] special block slot y   
+   14[7:4]
+
+   14[3] 1
+   14[2:0]-15[7] snail y
+   15[6:3]
+
+   15[2] 1
+   15[1:0]-16[7:6] big springboard y
+   16[5:2]
+
+   16[1] 1
+   16[0]-17[7:5] flower enemy y
+   17[4:1]
+
+   17[0] 1
+   18[7:4] riding platform y
+   18[3:0]
+
+   19[7]
+   19[6:3] goal arch y
+   19[2:0]-1A[7]
+
+   1A[6] 1
+   1A[5:0]-1B[7:6] tile ID of special block
+   
+   1B[5] 1
+   1B[4:0]-1C[7:5] tile ID of gopher
+   
+   1C[4] 1
+   1C[3:0]-1D[7:4] tile ID of special block slot
+   
+   1D[3] 1
+   1D[2:0]-1E[7:3] tile ID of snail
+   
+   1E[2] 1
+   1E[1:0]-1F[7:2] tile ID of big spring
+   
+   1F[1] 1
+   1F[0]-20[7:1] tile ID of flower enemy
+   
+   20[0] 1
+   21[7:0] tile ID of riding platform
+   
+   22[7] 1
+   22[6:0]-23[7] tile ID of goal arch
+   
+   unknown byte sized property still with single bit 1 delimiter
+   23[6], 23[5:0]-24[7:6]
+   24[5], 24[4:0]-25[7:5]
+   25[4], 25[3:0]-26[7:4]
+   26[3], 26[2:0]-27[7:3]
+   27[2], 27[1:0]-28[7:2]
+   28[1], 28[0]-29[7:1]
+   29[0], 2A[7:0]
+   2B[7], 2B[6:0]-2C[7]
+   
+   2C[6], 2C[5:0]-2D[7:6] tile id of first tile
+   2D[5]=0, 2D[4:0]-2E[7:3] negative offset from target address to memcpy from. 1
+            2E[2:0]-2F[7:5] length to memcpy. 0x3A plus a static 3
+   2F[4], 2F[3:0]-30[7:4] tile id of second tile
+   30[3], 30[2:0]-31[7:3] tile id of third tile
+   31[2], 31[1:0]-32[7:2] tile id of fourth tile
+   32[1], 32[0]-33[7:1] tile id of fifth tile
+   33[0]=0, 34[7:0]-35[7:6] negative offset from target address to memcpy from. 0x33
+            35[5:0] repeat count. 2F plus a static 3
+   ...
+   448[6]=0, 448[5:0]-449[7:4] last offset
+             449[3:0]-44A[7:6] last length
+   44A[5:0]-44C[7:0] probably null teminator with padding
+
+
+sudocode for the decompress:
+    set the starting target address
+    for each bit:
+        if the bit is a 1:
+            use the next 8 bits to set the target address
+            increment the target address by 1
+            move forward 9 bits (1 bit flag + 8 bit tile ID)
+        if the bit is a 0:
+            offset is the next 10 bits
+            length is the 6 bits after that + a static 3
+            memcpy(target - offset, target, length)
+            increment the target address by length
+            move forward 17 bits (1 bit flag + 10 bit offset + 6 bit length)
+
+
+stage 1-1 had index 0x03. it pointed to 0xB061 in bank 0x09 (0x13071 in the rom)
+first byte is 0x65, it seemed to control ground and sky tiles for multiple levels
+byte 2 or at least part of it seemed related to attribute tables for backgrounds
+looks like this may be a table of meta tile info for the world.
+
+
+structure of data pointed to by the bank 1 pointer table
+Loading routine (X was previously loaded with the stage info index)
+psuedocode:
+ put the pointer to the level data at 0x99
+ put the bank number at 0x67F
+9D6E:  BD 3C A5  LDA $A53C,X *   A:01  X:27  Y:0A  SP:FB  P:21  nvTbdizC  Cy:96637004  PPU-Cy:0
+9D71:  85 99     STA $99         A:00  X:27  Y:0A  SP:FB  P:23  nvTbdiZC  Cy:96637008  PPU-Cy:0
+9D73:  BD 99 A5  LDA $A599,X *   A:00  X:27  Y:0A  SP:FB  P:23  nvTbdiZC  Cy:96637011  PPU-Cy:0
+9D76:  85 9A     STA $9A         A:A0  X:27  Y:0A  SP:FB  P:A1  NvTbdizC  Cy:96637015  PPU-Cy:0
+9D78:  BD F6 A5  LDA $A5F6,X *   A:A0  X:27  Y:0A  SP:FB  P:A1  NvTbdizC  Cy:96637018  PPU-Cy:0
+9D7B:  8D 7F 06  STA $067F       A:07  X:27  Y:0A  SP:FB  P:21  nvTbdizC  Cy:96637023  PPU-Cy:0
+9D7E:  20 77 F0  JSR $F077       A:07  X:27  Y:0A  SP:FB  P:21  nvTbdizC  Cy:96637027  PPU-Cy:0
+
+9D81:  AD 76 06  LDA $0676       A:07  X:27  Y:0A  SP:FB  P:21  nvTbdizC  Cy:96637064  PPU-Cy:0
+9D84:  C9 0D     CMP #$0D        A:07  X:27  Y:0A  SP:FB  P:21  nvTbdizC  Cy:96637068  PPU-Cy:0
+9D86:  90 0C     BCC $9D94       A:07  X:27  Y:0A  SP:FB  P:A0  NvTbdizc  Cy:96637070  PPU-Cy:0
+9D88:  AD 79 06  LDA $0679
+9D8B:  48        PHA
+9D8C:  A9 00     LDA #$00
+9D8E:  8D 79 06  STA $0679
+9D91:  20 92 FD  JSR $FD92
+ load the first 6 bytes of level data to an array at 0x77B
+9D94:  A2 05     LDX #$05        A:07  X:27  Y:0A  SP:FB  P:A0  NvTbdizc  Cy:96637073  PPU-Cy:0
+9D96:  A0 00     LDY #$00        A:07  X:05  Y:0A  SP:FB  P:20  nvTbdizc  Cy:96637075  PPU-Cy:0
+9D98:  20 2D 9D  JSR $9D2D       A:07  X:05  Y:00  SP:FB  P:22  nvTbdiZc  Cy:96637077  PPU-Cy:0
+ load a byte
+9D9B:  99 7B 07  STA $077B,Y     A:A0  X:05  Y:00  SP:FB  P:A0  NvTbdizc  Cy:96637105  PPU-Cy:0
+9D9E:  C8        INY             A:A0  X:05  Y:00  SP:FB  P:A0  NvTbdizc  Cy:96637110  PPU-Cy:0
+9D9F:  CA        DEX             A:A0  X:05  Y:01  SP:FB  P:20  nvTbdizc  Cy:96637112  PPU-Cy:0
+9DA0:  10 F6     BPL $9D98       A:A0  X:04  Y:01  SP:FB  P:20  nvTbdizc  Cy:96637114  PPU-Cy:0
+9DA2:  AD 76 06  LDA $0676       A:09  X:FF  Y:06  SP:FB  P:A0  NvTbdizc  Cy:96637316  PPU-Cy:0
+9DA5:  C9 0D     CMP #$0D        A:07  X:FF  Y:06  SP:FB  P:20  nvTbdizc  Cy:96637320  PPU-Cy:0
+9DA7:  90 04     BCC $9DAD       A:07  X:FF  Y:06  SP:FB  P:A0  NvTbdizc  Cy:96637322  PPU-Cy:0
+9DA9:  68        PLA
+9DAA:  8D 79 06  STA $0679,X
+ switch to bank 3
+9DAD:  A9 03     LDA #$03        A:07  X:FF  Y:06  SP:FB  P:A0  NvTbdizc  Cy:96637325  PPU-Cy:0
+9DAF:  20 77 F0  JSR $F077       A:03  X:FF  Y:06  SP:FB  P:20  nvTbdizc  Cy:96637327  PPU-Cy:0
+ initialize some arrays
+9DB2:  20 47 9E  JSR $9E47       A:03  X:FF  Y:06  SP:FB  P:20  nvTbdizc  Cy:96637364  PPU-Cy:0
+9DB5:  AE 7D 07  LDX $077D       A:00  X:FF  Y:06  SP:FB  P:22  nvTbdiZc  Cy:96637506  PPU-Cy:0
+ call to load common world info?
+9DB8:  A9 00     LDA #$00        A:00  X:03  Y:06  SP:FB  P:20  nvTbdizc  Cy:96637510  PPU-Cy:0
+9DBA:  20 5F 9E  JSR $9E5F       A:00  X:03  Y:06  SP:FB  P:22  nvTbdiZc  Cy:96637512  PPU-Cy:0
+9DBD:  AE 7E 07  LDX $077E       A:03  X:39  Y:39  SP:FB  P:21  nvTbdizC  Cy:96760755  PPU-Cy:0
+ load page 1?
+9DC0:  A9 01     LDA #$01        A:03  X:01  Y:39  SP:FB  P:21  nvTbdizC  Cy:96760759  PPU-Cy:0
+9DC2:  20 5F 9E  JSR $9E5F       A:01  X:01  Y:39  SP:FB  P:21  nvTbdizC  Cy:96760761  PPU-Cy:0
+
+
+9E5F:  8D 75 06  STA $0675       A:00  X:03  Y:06  SP:F9  P:22  nvTbdiZc  Cy:96637518  PPU-Cy:0
+9E62:  8E 5F 07  STX $075F       A:00  X:03  Y:06  SP:F9  P:22  nvTbdiZc  Cy:96637522  PPU-Cy:0
+9E65:  E0 00     CPX #$00        A:00  X:03  Y:06  SP:F9  P:22  nvTbdiZc  Cy:96637526  PPU-Cy:0
+9E67:  D0 03     BNE $9E6C       A:00  X:03  Y:06  SP:F9  P:21  nvTbdizC  Cy:96637528  PPU-Cy:0
+9E69:  4C 0D 9F  JMP $9F0D
+ load bank 1
+9E6C:  A9 01     LDA #$01        A:00  X:03  Y:06  SP:F9  P:21  nvTbdizC  Cy:96637531  PPU-Cy:0
+9E6E:  20 77 F0  JSR $F077       A:01  X:03  Y:06  SP:F9  P:21  nvTbdizC  Cy:96637533  PPU-Cy:0
+ set the pointer at 0x99 from the array in bank 1 (indexed by byte 2 of the level info)
+9E71:  BD 8D A0  LDA $A08D,X *   A:01  X:03  Y:06  SP:F9  P:21  nvTbdizC  Cy:96637570  PPU-Cy:0
+9E74:  85 99     STA $99         A:61  X:03  Y:06  SP:F9  P:21  nvTbdizC  Cy:96637574  PPU-Cy:0
+9E76:  BD B9 A0  LDA $A0B9,X *   A:61  X:03  Y:06  SP:F9  P:21  nvTbdizC  Cy:96637577  PPU-Cy:0
+9E79:  85 9A     STA $9A         A:B0  X:03  Y:06  SP:F9  P:A1  NvTbdizC  Cy:96637581  PPU-Cy:0
+ set the bank from the array in bank 1 (indexed by byte 2 of the level info)
+9E7B:  BD E5 A0  LDA $A0E5,X *   A:B0  X:03  Y:06  SP:F9  P:A1  NvTbdizC  Cy:96637584  PPU-Cy:0
+9E7E:  20 77 F0  JSR $F077       A:09  X:03  Y:06  SP:F9  P:21  nvTbdizC  Cy:96637588  PPU-Cy:0
+9E81:  A9 00     LDA #$00        A:09  X:03  Y:06  SP:F9  P:21  nvTbdizC  Cy:96637625  PPU-Cy:0
+9E83:  85 9B     STA $9B         A:00  X:03  Y:06  SP:F9  P:23  nvTbdiZC  Cy:96637627  PPU-Cy:0
+9E85:  85 93     STA $93         A:00  X:03  Y:06  SP:F9  P:23  nvTbdiZC  Cy:96637630  PPU-Cy:0
+9E87:  A9 67     LDA #$67        A:00  X:03  Y:06  SP:F9  P:23  nvTbdiZC  Cy:96637633  PPU-Cy:0
+9E89:  85 9C     STA $9C         A:67  X:03  Y:06  SP:F9  P:21  nvTbdizC  Cy:96637635  PPU-Cy:0
+9E8B:  85 94     STA $94         A:67  X:03  Y:06  SP:F9  P:21  nvTbdizC  Cy:96637638  PPU-Cy:0
+ load stuff common accross levels?
+9E8D:  20 0F E4  JSR $E40F       A:67  X:03  Y:06  SP:F9  P:21  nvTbdizC  Cy:96637641  PPU-Cy:0
+9E90:  20 99 9E  JSR $9E99       A:01  X:00  Y:08  SP:F9  P:20  nvTbdizc  Cy:96731234  PPU-Cy:0
+ load bank 3
+9E93:  A9 03     LDA #$03        A:07  X:39  Y:39  SP:F9  P:23  nvTbdiZC  Cy:96760710  PPU-Cy:0
+9E95:  20 77 F0  JSR $F077       A:03  X:39  Y:39  SP:F9  P:21  nvTbdizC  Cy:96760712  PPU-Cy:0
+9E98:  60        RTS             A:03  X:39  Y:39  SP:F9  P:21  nvTbdizC  Cy:96760749  PPU-Cy:0
+
+ load world common info?
+9E99:  A0 00     LDY #$00        A:01  X:00  Y:08  SP:F7  P:20  nvTbdizc  Cy:96731240  PPU-Cy:0
+9E9B:  8C 66 07  STY $0766       A:01  X:00  Y:00  SP:F7  P:22  nvTbdiZc  Cy:96731242  PPU-Cy:0
+9E9E:  B1 93     LDA ($93),Y *   A:01  X:00  Y:00  SP:F7  P:22  nvTbdiZc  Cy:96731246  PPU-Cy:0
+9EA0:  A2 03     LDX #$03        A:00  X:00  Y:00  SP:F7  P:22  nvTbdiZc  Cy:96731251  PPU-Cy:0
+9EA2:  DD 9A 06  CMP $069A,X *   A:00  X:03  Y:00  SP:F7  P:20  nvTbdizc  Cy:96731253  PPU-Cy:0
+9EA5:  F0 18     BEQ $9EBF       A:00  X:03  Y:00  SP:F7  P:20  nvTbdizc  Cy:96731257  PPU-Cy:0
+9EA7:  CA        DEX             A:00  X:03  Y:00  SP:F7  P:20  nvTbdizc  Cy:96731259  PPU-Cy:0
+9EA8:  10 F8     BPL $9EA2       A:00  X:02  Y:00  SP:F7  P:20  nvTbdizc  Cy:96731261  PPU-Cy:0
+9EAA:  85 44     STA $44         A:00  X:FF  Y:00  SP:F7  P:A0  NvTbdizc  Cy:96731296  PPU-Cy:0
+9EAC:  A2 03     LDX #$03        A:00  X:FF  Y:00  SP:F7  P:A0  NvTbdizc  Cy:96731299  PPU-Cy:0
+9EAE:  A9 FE     LDA #$FE        A:00  X:03  Y:00  SP:F7  P:20  nvTbdizc  Cy:96731301  PPU-Cy:0
+9EB0:  DD 9A 06  CMP $069A,X *   A:FE  X:03  Y:00  SP:F7  P:A0  NvTbdizc  Cy:96731303  PPU-Cy:0
+9EB3:  F0 05     BEQ $9EBA       A:FE  X:03  Y:00  SP:F7  P:23  nvTbdiZC  Cy:96731307  PPU-Cy:0
+9EB5:  CA        DEX             A:FE  X:02  Y:02  SP:F7  P:A1  NvTbdizC  Cy:96731489  PPU-Cy:0
+9EB6:  10 F8     BPL $9EB0       A:FE  X:01  Y:02  SP:F7  P:21  nvTbdizC  Cy:96731491  PPU-Cy:0
+9EB8:  30 05     BMI $9EBF I think
+9EBA:  A5 44     LDA $44         A:FE  X:03  Y:00  SP:F7  P:23  nvTbdiZC  Cy:96731310  PPU-Cy:0
+9EBC:  9D 9A 06  STA $069A,X     A:00  X:03  Y:00  SP:F7  P:23  nvTbdiZC  Cy:96731313  PPU-Cy:0
+9EBF:  C8        INY             A:00  X:03  Y:00  SP:F7  P:23  nvTbdiZC  Cy:96731318  PPU-Cy:0
+9EC0:  C0 04     CPY #$04        A:00  X:03  Y:01  SP:F7  P:21  nvTbdizC  Cy:96731320  PPU-Cy:0
+9EC2:  D0 DA     BNE $9E9E       A:00  X:03  Y:01  SP:F7  P:A0  NvTbdizc  Cy:96731322  PPU-Cy:0
+9EC4:  B1 93     LDA ($93),Y *   A:02  X:01  Y:04  SP:F7  P:23  nvTbdiZC  Cy:96731558  PPU-Cy:0
+9EC6:  8D 61 07  STA $0761       A:3B  X:01  Y:04  SP:F7  P:21  nvTbdizC  Cy:96731563  PPU-Cy:0
+9EC9:  C8        INY             A:3B  X:01  Y:04  SP:F7  P:21  nvTbdizC  Cy:96731567  PPU-Cy:0
+ clear a range at 0x6X00 to 0?
+9ECA:  20 0E 9F  JSR $9F0E       A:3B  X:01  Y:05  SP:F7  P:21  nvTbdizC  Cy:96731569  PPU-Cy:0
+9ECD:  A2 00     LDX #$00        A:05  X:00  Y:05  SP:F7  P:20  nvTbdizc  Cy:96732507  PPU-Cy:0
+9ECF:  B1 93     LDA ($93),Y *   A:05  X:00  Y:05  SP:F7  P:22  nvTbdiZc  Cy:96732509  PPU-Cy:0
+9ED1:  8D 62 07  STA $0762       A:00  X:00  Y:05  SP:F7  P:22  nvTbdiZc  Cy:96732514  PPU-Cy:0
+9ED4:  98        TYA             A:00  X:00  Y:05  SP:F7  P:22  nvTbdiZc  Cy:96732518  PPU-Cy:0
+9ED5:  48        PHA             A:05  X:00  Y:05  SP:F7  P:20  nvTbdizc  Cy:96732520  PPU-Cy:0
+9ED6:  8A        TXA             A:05  X:00  Y:05  SP:F6  P:20  nvTbdizc  Cy:96732523  PPU-Cy:0
+9ED7:  A8        TAY             A:00  X:00  Y:05  SP:F6  P:22  nvTbdiZc  Cy:96732525  PPU-Cy:0
+9ED8:  AD 62 07  LDA $0762       A:00  X:00  Y:00  SP:F6  P:22  nvTbdiZc  Cy:96732527  PPU-Cy:0
+9EDB:  18        CLC             A:00  X:00  Y:00  SP:F6  P:22  nvTbdiZc  Cy:96732531  PPU-Cy:0
+9EDC:  6D 74 06  ADC $0674       A:00  X:00  Y:00  SP:F6  P:22  nvTbdiZc  Cy:96732533  PPU-Cy:0
+9EDF:  91 95     STA ($95),Y     A:00  X:00  Y:00  SP:F6  P:22  nvTbdiZc  Cy:96732537  PPU-Cy:0
+9EE1:  68        PLA             A:00  X:00  Y:00  SP:F6  P:22  nvTbdiZc  Cy:96732543  PPU-Cy:0
+9EE2:  A8        TAY             A:05  X:00  Y:00  SP:F7  P:20  nvTbdizc  Cy:96732547  PPU-Cy:0
+9EE3:  C8        INY             A:05  X:00  Y:05  SP:F7  P:20  nvTbdizc  Cy:96732549  PPU-Cy:0
+9EE4:  E8        INX             A:05  X:00  Y:06  SP:F7  P:20  nvTbdizc  Cy:96732551  PPU-Cy:0
+9EE5:  EC 61 07  CPX $0761       A:05  X:01  Y:06  SP:F7  P:20  nvTbdizc  Cy:96732553  PPU-Cy:0
+9EE8:  D0 E5     BNE $9ECF       A:05  X:01  Y:06  SP:F7  P:A0  NvTbdizc  Cy:96732557  PPU-Cy:0
+9EEA:  AD 66 07  LDA $0766       A:3F  X:3B  Y:40  SP:F7  P:23  nvTbdiZC  Cy:96735517  PPU-Cy:0
+9EED:  C9 05     CMP #$05        A:01  X:3B  Y:40  SP:F7  P:21  nvTbdizC  Cy:96735521  PPU-Cy:0
+9EEF:  F0 13     BEQ $9F04       A:01  X:3B  Y:40  SP:F7  P:A0  NvTbdizc  Cy:96735523  PPU-Cy:0
+9EF1:  C9 07     CMP #$07        A:01  X:3B  Y:40  SP:F7  P:A0  NvTbdizc  Cy:96735525  PPU-Cy:0
+9EF3:  F0 18     BEQ $9F0D       A:01  X:3B  Y:40  SP:F7  P:A0  NvTbdizc  Cy:96735527  PPU-Cy:0
+9EF5:  18        CLC             A:01  X:3B  Y:40  SP:F7  P:A0  NvTbdizc  Cy:96735529  PPU-Cy:0
+9EF6:  98        TYA             A:01  X:3B  Y:40  SP:F7  P:A0  NvTbdizc  Cy:96735531  PPU-Cy:0
+9EF7:  65 93     ADC $93         A:40  X:3B  Y:40  SP:F7  P:20  nvTbdizc  Cy:96735533  PPU-Cy:0
+9EF9:  85 93     STA $93         A:40  X:3B  Y:40  SP:F7  P:20  nvTbdizc  Cy:96735536  PPU-Cy:0
+9EFB:  90 02     BCC $9EFF       A:40  X:3B  Y:40  SP:F7  P:20  nvTbdizc  Cy:96735539  PPU-Cy:0
+...
+9EFF:  A0 00     LDY #$00        A:40  X:3B  Y:40  SP:F7  P:20  nvTbdizc  Cy:96735542  PPU-Cy:0
+9F01:  4C CA 9E  JMP $9ECA       A:40  X:3B  Y:00  SP:F7  P:22  nvTbdiZc  Cy:96735544  PPU-Cy:0
+
+9F0E:  98        TYA             A:3B  X:01  Y:05  SP:F5  P:21  nvTbdizC  Cy:96731575  PPU-Cy:0
+9F0F:  48        PHA             A:05  X:01  Y:05  SP:F5  P:21  nvTbdizC  Cy:96731577  PPU-Cy:0
+9F10:  AC 66 07  LDY $0766       A:05  X:01  Y:05  SP:F4  P:21  nvTbdizC  Cy:96731580  PPU-Cy:0
+9F13:  B9 B5 F0  LDA $F0B5,Y *   A:05  X:01  Y:00  SP:F4  P:23  nvTbdiZC  Cy:96731584  PPU-Cy:0
+9F16:  85 95     STA $95         A:00  X:01  Y:00  SP:F4  P:23  nvTbdiZC  Cy:96731588  PPU-Cy:0
+9F18:  B9 BC F0  LDA $F0BC,Y *   A:00  X:01  Y:00  SP:F4  P:23  nvTbdiZC  Cy:96731591  PPU-Cy:0
+9F1B:  85 96     STA $96         A:60  X:01  Y:00  SP:F4  P:21  nvTbdizC  Cy:96731595  PPU-Cy:0
+9F1D:  AE 75 06  LDX $0675       A:60  X:01  Y:00  SP:F4  P:21  nvTbdizC  Cy:96731598  PPU-Cy:0
+9F20:  BD C3 F0  LDA $F0C3,X *   A:60  X:00  Y:00  SP:F4  P:23  nvTbdiZC  Cy:96731602  PPU-Cy:0
+9F23:  48        PHA             A:00  X:00  Y:00  SP:F4  P:23  nvTbdiZC  Cy:96731606  PPU-Cy:0
+9F24:  B9 C7 F0  LDA $F0C7,Y *   A:00  X:00  Y:00  SP:F3  P:23  nvTbdiZC  Cy:96731609  PPU-Cy:0
+9F27:  F0 05     BEQ $9F2E       A:01  X:00  Y:00  SP:F3  P:21  nvTbdizC  Cy:96731613  PPU-Cy:0
+9F29:  68        PLA             A:01  X:00  Y:00  SP:F3  P:21  nvTbdizC  Cy:96731615  PPU-Cy:0
+9F2A:  48        PHA             A:00  X:00  Y:00  SP:F4  P:23  nvTbdiZC  Cy:96731619  PPU-Cy:0
+9F2B:  4C 30 9F  JMP $9F30       A:00  X:00  Y:00  SP:F3  P:23  nvTbdiZC  Cy:96731622  PPU-Cy:0
+...
+9F30:  8D 74 06  STA $0674       A:00  X:00  Y:00  SP:F3  P:23  nvTbdiZC  Cy:96731625  PPU-Cy:0
+9F33:  68        PLA             A:00  X:00  Y:00  SP:F3  P:23  nvTbdiZC  Cy:96731629  PPU-Cy:0
+9F34:  18        CLC             A:00  X:00  Y:00  SP:F4  P:23  nvTbdiZC  Cy:96731633  PPU-Cy:0
+9F35:  65 95     ADC $95         A:00  X:00  Y:00  SP:F4  P:22  nvTbdiZc  Cy:96731635  PPU-Cy:0
+9F37:  85 95     STA $95         A:00  X:00  Y:00  SP:F4  P:22  nvTbdiZc  Cy:96731638  PPU-Cy:0
+9F39:  90 02     BCC $9F3D       A:00  X:00  Y:00  SP:F4  P:22  nvTbdiZc  Cy:96731641  PPU-Cy:0
+...
+9F3D:  EE 66 07  INC $0766       A:00  X:00  Y:00  SP:F4  P:22  nvTbdiZc  Cy:96731644  PPU-Cy:0
+9F40:  A9 00     LDA #$00        A:00  X:00  Y:00  SP:F4  P:20  nvTbdizc  Cy:96731650  PPU-Cy:0
+9F42:  A4 90     LDY $90         A:00  X:00  Y:00  SP:F4  P:22  nvTbdiZc  Cy:96731652  PPU-Cy:0
+9F44:  F0 13     BEQ $9F59       A:00  X:00  Y:00  SP:F4  P:22  nvTbdiZc  Cy:96731655  PPU-Cy:0
+...
+9F59:  A2 40     LDX #$40        A:00  X:00  Y:00  SP:F4  P:22  nvTbdiZc  Cy:96731658  PPU-Cy:0
+9F5B:  A9 00     LDA #$00        A:00  X:40  Y:00  SP:F4  P:20  nvTbdizc  Cy:96731660  PPU-Cy:0
+9F5D:  A8        TAY             A:00  X:40  Y:00  SP:F4  P:22  nvTbdiZc  Cy:96731662  PPU-Cy:0
+9F5E:  91 95     STA ($95),Y     A:00  X:40  Y:00  SP:F4  P:22  nvTbdiZc  Cy:96731664  PPU-Cy:0
+9F60:  C8        INY             A:00  X:40  Y:00  SP:F4  P:22  nvTbdiZc  Cy:96731670  PPU-Cy:0
+9F61:  CA        DEX             A:00  X:40  Y:01  SP:F4  P:20  nvTbdizc  Cy:96731672  PPU-Cy:0
+9F62:  D0 FA     BNE $9F5E       A:00  X:3F  Y:01  SP:F4  P:20  nvTbdizc  Cy:96731674  PPU-Cy:0
+
+
+function to load common stuff?
+E40F:  A9 FF     LDA #$FF        A:67  X:03  Y:06  SP:F7  P:21  nvTbdizC  Cy:96637647  PPU-Cy:0
+E411:  8D 8B 07  STA $078B       A:FF  X:03  Y:06  SP:F7  P:A1  NvTbdizC  Cy:96637649  PPU-Cy:0
+E414:  8D 8C 07  STA $078C       A:FF  X:03  Y:06  SP:F7  P:A1  NvTbdizC  Cy:96637653  PPU-Cy:0
+E417:  A9 00     LDA #$00        A:FF  X:03  Y:06  SP:F7  P:A1  NvTbdizC  Cy:96637657  PPU-Cy:0
+E419:  85 A4     STA $A4         A:00  X:03  Y:06  SP:F7  P:23  nvTbdiZC  Cy:96637659  PPU-Cy:0
+E41B:  8D 8D 07  STA $078D       A:00  X:03  Y:06  SP:F7  P:23  nvTbdiZC  Cy:96637662  PPU-Cy:0
+E41E:  85 9E     STA $9E         A:00  X:03  Y:06  SP:F7  P:23  nvTbdiZC  Cy:96637666  PPU-Cy:0
+E420:  AD 76 06  LDA $0676       A:00  X:03  Y:06  SP:F7  P:23  nvTbdiZC  Cy:96637669  PPU-Cy:0
+E423:  C9 0D     CMP #$0D        A:09  X:03  Y:06  SP:F7  P:21  nvTbdizC  Cy:96637673  PPU-Cy:0
+E425:  90 0E     BCC $E435       A:09  X:03  Y:06  SP:F7  P:A0  NvTbdizc  Cy:96637675  PPU-Cy:0
+E427:  85 9E     STA $9E
+E429:  AD 79 06  LDA $0679
+E42C:  48        PHA
+E42D:  A9 00     LDA #$00
+E42F:  8D 79 06  STA $0679
+E432:  20 92 FD  JSR $FD92
+ load the first byte into 0xA3 and shift left 4 times (rotating up into 0xA5 and 0xA6)
+E435:  A2 04     LDX #$04        A:09  X:03  Y:06  SP:F7  P:A0  NvTbdizc  Cy:96637678  PPU-Cy:0
+E437:  20 DF E3  JSR $E3DF       A:09  X:04  Y:06  SP:F7  P:20  nvTbdizc  Cy:96637680  PPU-Cy:0
+ store the first upper nibble we read to 0x765
+E43A:  A5 A5     LDA $A5         A:05  X:00  Y:08  SP:F7  P:22  nvTbdiZc  Cy:96637859  PPU-Cy:0
+E43C:  8D 65 07  STA $0765       A:06  X:00  Y:08  SP:F7  P:20  nvTbdizc  Cy:96637862  PPU-Cy:0
+ shift/rotate the first lower nibble into 0xA5
+E43F:  A2 04     LDX #$04        A:06  X:00  Y:08  SP:F7  P:20  nvTbdizc  Cy:96637866  PPU-Cy:0
+E441:  20 DF E3  JSR $E3DF       A:06  X:04  Y:08  SP:F7  P:20  nvTbdizc  Cy:96637868  PPU-Cy:0
+ store the first lower nibble to 0xA2
+E444:  A5 A5     LDA $A5         A:01  X:00  Y:08  SP:F7  P:22  nvTbdiZc  Cy:96638018  PPU-Cy:0
+E446:  85 A2     STA $A2         A:05  X:00  Y:08  SP:F7  P:20  nvTbdizc  Cy:96638021  PPU-Cy:0
+E448:  AD 8D 07  LDA $078D       A:05  X:00  Y:08  SP:F7  P:20  nvTbdizc  Cy:96638024  PPU-Cy:0
+E44B:  D0 C1     BNE $E40E       A:00  X:00  Y:08  SP:F7  P:22  nvTbdiZc  Cy:96638028  PPU-Cy:0
+E44D:  A5 A4     LDA $A4         A:00  X:00  Y:08  SP:F7  P:22  nvTbdiZc  Cy:96638030  PPU-Cy:0
+E44F:  D0 1A     BNE $E46B       A:00  X:00  Y:08  SP:F7  P:22  nvTbdiZc  Cy:96638033  PPU-Cy:0
+E451:  A5 9E     LDA $9E         A:00  X:00  Y:08  SP:F7  P:22  nvTbdiZc  Cy:96638035  PPU-Cy:0
+E453:  D0 0F     BNE $E464       A:00  X:00  Y:08  SP:F7  P:22  nvTbdiZc  Cy:96638038  PPU-Cy:0
+ load the 2nd byte into 0xA3
+E455:  A0 00     LDY #$00        A:00  X:00  Y:08  SP:F7  P:22  nvTbdiZc  Cy:96638040  PPU-Cy:0
+E457:  B1 99     LDA ($99),Y *   A:00  X:00  Y:00  SP:F7  P:22  nvTbdiZc  Cy:96638042  PPU-Cy:0
+E459:  85 A3     STA $A3         A:80  X:00  Y:00  SP:F7  P:A0  NvTbdizc  Cy:96638047  PPU-Cy:0
+E45B:  E6 99     INC $99         A:80  X:00  Y:00  SP:F7  P:A0  NvTbdizc  Cy:96638050  PPU-Cy:0
+ handle the pointer rollover
+E45D:  D0 02     BNE $E461       A:80  X:00  Y:00  SP:F7  P:20  nvTbdizc  Cy:96638055  PPU-Cy:0
+E45F:  E6 9A     INC $99
+E461:  4C 67 E4  JMP $E467       A:80  X:00  Y:00  SP:F7  P:20  nvTbdizc  Cy:96638058  PPU-Cy:0
+E464:  20 BE FD  JSR $FDBE
+E467:  A0 08     LDY #$08        A:80  X:00  Y:00  SP:F7  P:20  nvTbdizc  Cy:96638061  PPU-Cy:0
+E469:  84 A4     STY $A4         A:80  X:00  Y:08  SP:F7  P:20  nvTbdizc  Cy:96638063  PPU-Cy:0
+E46B:  C6 A4     DEC $A4         A:80  X:00  Y:08  SP:F7  P:20  nvTbdizc  Cy:96638066  PPU-Cy:0
+E46D:  06 A3     ASL $A3         A:80  X:00  Y:08  SP:F7  P:20  nvTbdizc  Cy:96638071  PPU-Cy:0
+E46F:  90 14     BCC $E485       A:80  X:00  Y:08  SP:F7  P:23  nvTbdiZC  Cy:96638076  PPU-Cy:0
+ load the 3rd byte into 0xA3
+E471:  A2 08     LDX #$08        A:80  X:00  Y:08  SP:F7  P:23  nvTbdiZC  Cy:96638078  PPU-Cy:0
+E473:  20 DF E3  JSR $E3DF       A:80  X:08  Y:08  SP:F7  P:21  nvTbdizC  Cy:96638080  PPU-Cy:0
+E476:  A0 00     LDY #$00        A:40  X:00  Y:08  SP:F7  P:22  nvTbdiZc  Cy:96638391  PPU-Cy:0
+ store 0 to the start of level data in ram 0x6700
+E478:  A5 A5     LDA $A5         A:40  X:00  Y:00  SP:F7  P:22  nvTbdiZc  Cy:96638393  PPU-Cy:0
+E47A:  91 9B     STA ($9B),Y     A:00  X:00  Y:00  SP:F7  P:22  nvTbdiZc  Cy:96638396  PPU-Cy:0
+E47C:  E6 9B     INC $9B         A:00  X:00  Y:00  SP:F7  P:22  nvTbdiZc  Cy:96638402  PPU-Cy:0
+E47E:  D0 02     BNE $E482       A:00  X:00  Y:00  SP:F7  P:20  nvTbdizc  Cy:96638407  PPU-Cy:0
+E480:  E6 0C     INC $0C
+E482:  4C D0 E4  JMP $E4D0       A:00  X:00  Y:00  SP:F7  P:20  nvTbdizc  Cy:96638410  PPU-Cy:0
+E485:  AE 65 07  LDX $0765       A:01  X:00  Y:00  SP:F7  P:22  nvTbdiZc  Cy:96667938  PPU-Cy:0
+E488:  20 DF E3  JSR $E3DF       A:01  X:06  Y:00  SP:F7  P:20  nvTbdizc  Cy:96667942  PPU-Cy:0
+E48B:  A5 A5     LDA $A5         A:03  X:00  Y:08  SP:F7  P:22  nvTbdiZc  Cy:96668187  PPU-Cy:0
+E48D:  8D 6A 07  STA $076A       A:0E  X:00  Y:08  SP:F7  P:20  nvTbdizc  Cy:96668190  PPU-Cy:0
+E490:  A5 A6     LDA $A6         A:0E  X:00  Y:08  SP:F7  P:20  nvTbdizc  Cy:96668194  PPU-Cy:0
+E492:  8D 6B 07  STA $076B       A:00  X:00  Y:08  SP:F7  P:22  nvTbdiZc  Cy:96668197  PPU-Cy:0
+E495:  0D 6A 07  ORA $076A       A:00  X:00  Y:08  SP:F7  P:22  nvTbdiZc  Cy:96668201  PPU-Cy:0
+E498:  F0 46     BEQ $E4E0       A:0E  X:00  Y:08  SP:F7  P:20  nvTbdizc  Cy:96668205  PPU-Cy:0
+E49A:  A6 A2     LDX $A2         A:0E  X:00  Y:08  SP:F7  P:20  nvTbdizc  Cy:96668207  PPU-Cy:0
+E49C:  20 DF E3  JSR $E3DF       A:0E  X:05  Y:08  SP:F7  P:20  nvTbdizc  Cy:96668210  PPU-Cy:0
+E49F:  18        CLC             A:06  X:00  Y:08  SP:F7  P:22  nvTbdiZc  Cy:96668422  PPU-Cy:0
+E4A0:  A5 A5     LDA $A5         A:06  X:00  Y:08  SP:F7  P:22  nvTbdiZc  Cy:96668424  PPU-Cy:0
+E4A2:  69 03     ADC #$03        A:00  X:00  Y:08  SP:F7  P:22  nvTbdiZc  Cy:96668427  PPU-Cy:0
+E4A4:  8D 64 07  STA $0764       A:03  X:00  Y:08  SP:F7  P:20  nvTbdizc  Cy:96668429  PPU-Cy:0
+E4A7:  38        SEC             A:03  X:00  Y:08  SP:F7  P:20  nvTbdizc  Cy:96668433  PPU-Cy:0
+E4A8:  A5 9B     LDA $9B         A:03  X:00  Y:08  SP:F7  P:21  nvTbdizC  Cy:96668435  PPU-Cy:0
+E4AA:  ED 6A 07  SBC $076A       A:59  X:00  Y:08  SP:F7  P:21  nvTbdizC  Cy:96668438  PPU-Cy:0
+E4AD:  85 97     STA $97         A:4B  X:00  Y:08  SP:F7  P:21  nvTbdizC  Cy:96668442  PPU-Cy:0
+E4AF:  A5 9C     LDA $9C         A:4B  X:00  Y:08  SP:F7  P:21  nvTbdizC  Cy:96668445  PPU-Cy:0
+E4B1:  ED 6B 07  SBC $076B       A:67  X:00  Y:08  SP:F7  P:21  nvTbdizC  Cy:96668448  PPU-Cy:0
+E4B4:  85 98     STA $98         A:67  X:00  Y:08  SP:F7  P:21  nvTbdizC  Cy:96668452  PPU-Cy:0
+E4B6:  A0 00     LDY #$00        A:67  X:00  Y:08  SP:F7  P:21  nvTbdizC  Cy:96668455  PPU-Cy:0
+E4B8:  B1 97     LDA ($97),Y *   A:67  X:00  Y:00  SP:F7  P:23  nvTbdiZC  Cy:96668457  PPU-Cy:0
+E4BA:  91 9B     STA ($9B),Y     A:10  X:00  Y:00  SP:F7  P:21  nvTbdizC  Cy:96668462  PPU-Cy:0
+E4BC:  C8        INY             A:10  X:00  Y:00  SP:F7  P:21  nvTbdizC  Cy:96668468  PPU-Cy:0
+E4BD:  CC 64 07  CPY $0764       A:10  X:00  Y:01  SP:F7  P:21  nvTbdizC  Cy:96668470  PPU-Cy:0
+E4C0:  D0 F6     BNE $E4B8       A:10  X:00  Y:01  SP:F7  P:A0  NvTbdizc  Cy:96668474  PPU-Cy:0
+E4C2:  18        CLC             A:13  X:00  Y:03  SP:F7  P:23  nvTbdiZC  Cy:96668516  PPU-Cy:0
+E4C3:  A5 9B     LDA $9B         A:13  X:00  Y:03  SP:F7  P:22  nvTbdiZc  Cy:96668518  PPU-Cy:0
+E4C5:  6D 64 07  ADC $0764       A:59  X:00  Y:03  SP:F7  P:20  nvTbdizc  Cy:96668521  PPU-Cy:0
+E4C8:  85 9B     STA $9B         A:5C  X:00  Y:03  SP:F7  P:20  nvTbdizc  Cy:96668525  PPU-Cy:0
+E4CA:  A5 9C     LDA $9C         A:5C  X:00  Y:03  SP:F7  P:20  nvTbdizc  Cy:96668528  PPU-Cy:0
+E4CC:  69 00     ADC #$00        A:67  X:00  Y:03  SP:F7  P:20  nvTbdizc  Cy:96668531  PPU-Cy:0
+E4CE:  85 9C     STA $9C         A:67  X:00  Y:03  SP:F7  P:20  nvTbdizc  Cy:96668533  PPU-Cy:0
+ check the ram loading pointer in 0x9B against the end of the stage presumably?
+E4D0:  A5 9B     LDA $9B         A:00  X:00  Y:00  SP:F7  P:20  nvTbdizc  Cy:96638413  PPU-Cy:0
+E4D2:  CD 8B 07  CMP $078B       A:01  X:00  Y:00  SP:F7  P:20  nvTbdizc  Cy:96638416  PPU-Cy:0
+E4D5:  A5 9C     LDA $9C         A:01  X:00  Y:00  SP:F7  P:20  nvTbdizc  Cy:96638420  PPU-Cy:0
+E4D7:  ED 8C 07  SBC $078C       A:67  X:00  Y:00  SP:F7  P:20  nvTbdizc  Cy:96638423  PPU-Cy:0
+E4DA:  B0 03     BCS $E4DF       A:67  X:00  Y:00  SP:F7  P:20  nvTbdizc  Cy:96638427  PPU-Cy:0
+E4DC:  4C 4D E4  JMP $E44D       A:67  X:00  Y:00  SP:F7  P:20  nvTbdizc  Cy:96638429  PPU-Cy:0
+
+
+if 0xA4 is 0
+  load a byte from (0x99) into 0xA3
+  set 0xA4 to 8
+decrement 0xA4
+shift 0xA4 left X times
+rotate the upper bits into 0xA5 and chain rotate into 0xA6
+increment 0x99
+E3DF:  A9 00     LDA #$00        A:09  X:04  Y:06  SP:F5  P:20  nvTbdizc  Cy:96637686  PPU-Cy:0
+E3E1:  85 A5     STA $A5         A:00  X:04  Y:06  SP:F5  P:22  nvTbdiZc  Cy:96637688  PPU-Cy:0
+E3E3:  85 A6     STA $A6         A:00  X:04  Y:06  SP:F5  P:22  nvTbdiZc  Cy:96637691  PPU-Cy:0
+E3E5:  A5 A4     LDA $A4         A:00  X:04  Y:06  SP:F5  P:22  nvTbdiZc  Cy:96637694  PPU-Cy:0
+E3E7:  D0 1A     BNE $E403       A:00  X:04  Y:06  SP:F5  P:22  nvTbdiZc  Cy:96637697  PPU-Cy:0
+E3E9:  A5 9E     LDA $9E         A:00  X:04  Y:06  SP:F5  P:22  nvTbdiZc  Cy:96637699  PPU-Cy:0
+E3EB:  D0 0F     BNE $E3FC       A:00  X:04  Y:06  SP:F5  P:22  nvTbdiZc  Cy:96637702  PPU-Cy:0
+E3ED:  A0 00     LDY #$00        A:00  X:04  Y:06  SP:F5  P:22  nvTbdiZc  Cy:96637704  PPU-Cy:0
+E3EF:  B1 99     LDA ($99),Y *   A:00  X:04  Y:00  SP:F5  P:22  nvTbdiZc  Cy:96637706  PPU-Cy:0
+E3F1:  85 A3     STA $A3         A:65  X:04  Y:00  SP:F5  P:20  nvTbdizc  Cy:96637711  PPU-Cy:0
+E3F3:  E6 99     INC $99         A:65  X:04  Y:00  SP:F5  P:20  nvTbdizc  Cy:96637714  PPU-Cy:0
+E3F5:  D0 02     BNE $E3F9       A:65  X:04  Y:00  SP:F5  P:20  nvTbdizc  Cy:96637719  PPU-Cy:0
+ handle the 2 byte address rollover
+E3F7:  E6 9A     INC $9A
+E3F9:  4C FF E3  JMP $E3FF       A:65  X:04  Y:00  SP:F5  P:20  nvTbdizc  Cy:96637722  PPU-Cy:0
+E3FC:  20 BE FD  JSR $FDBE
+E3FF:  A0 08     LDY #$08        A:65  X:04  Y:00  SP:F5  P:20  nvTbdizc  Cy:96637725  PPU-Cy:0
+E401:  84 A4     STY $A4         A:65  X:04  Y:08  SP:F5  P:20  nvTbdizc  Cy:96637727  PPU-Cy:0
+E403:  C6 A4     DEC $A4         A:65  X:04  Y:08  SP:F5  P:20  nvTbdizc  Cy:96637730  PPU-Cy:0
+E405:  06 A3     ASL $A3         A:65  X:04  Y:08  SP:F5  P:20  nvTbdizc  Cy:96637735  PPU-Cy:0
+E407:  26 A5     ROL $A5         A:65  X:04  Y:08  SP:F5  P:A0  NvTbdizc  Cy:96637740  PPU-Cy:0
+E409:  26 A6     ROL $A6         A:65  X:04  Y:08  SP:F5  P:22  nvTbdiZc  Cy:96637745  PPU-Cy:0
+E40B:  CA        DEX             A:65  X:04  Y:08  SP:F5  P:22  nvTbdiZc  Cy:96637750  PPU-Cy:0
+E40C:  D0 D7     BNE $E3E5       A:65  X:03  Y:08  SP:F5  P:20  nvTbdizc  Cy:96637752  PPU-Cy:0
+E40E:  60        RTS             A:05  X:00  Y:08  SP:F5  P:22  nvTbdiZc  Cy:96637853  PPU-Cy:0
+
+ set 8 bytes at 0x782 to 0xFE
+9E47:  A2 07     LDX #$07        A:03  X:FF  Y:06  SP:F9  P:20  nvTbdizc  Cy:96637370  PPU-Cy:0
+9E49:  A9 FE     LDA #$FE        A:03  X:07  Y:06  SP:F9  P:20  nvTbdizc  Cy:96637372  PPU-Cy:0
+9E4B:  9D 82 07  STA $0782,X     A:FE  X:07  Y:06  SP:F9  P:A0  NvTbdizc  Cy:96637374  PPU-Cy:0
+9E4E:  CA        DEX             A:FE  X:07  Y:06  SP:F9  P:A0  NvTbdizc  Cy:96637379  PPU-Cy:0
+9E4F:  10 FA     BPL $9E4B       A:FE  X:06  Y:06  SP:F9  P:20  nvTbdizc  Cy:96637381  PPU-Cy:0
+ also 4 bytes at 0x69A to 0xFE
+9E51:  A2 03     LDX #$03        A:FE  X:FF  Y:06  SP:F9  P:A0  NvTbdizc  Cy:96637453  PPU-Cy:0
+9E53:  9D 9A 06  STA $069A,X     A:FE  X:03  Y:06  SP:F9  P:20  nvTbdizc  Cy:96637455  PPU-Cy:0
+9E56:  CA        DEX             A:FE  X:03  Y:06  SP:F9  P:20  nvTbdizc  Cy:96637460  PPU-Cy:0
+9E57:  10 FA     BPL $9E53       A:FE  X:02  Y:06  SP:F9  P:20  nvTbdizc  Cy:96637462  PPU-Cy:0
+ and set 0x760 to 0
+9E59:  A9 00     LDA #$00        A:FE  X:FF  Y:06  SP:F9  P:A0  NvTbdizc  Cy:96637494  PPU-Cy:0
+9E5B:  8D 60 07  STA $0760       A:00  X:FF  Y:06  SP:F9  P:22  nvTbdiZc  Cy:96637496  PPU-Cy:0
+9E5E:  60        RTS             A:00  X:FF  Y:06  SP:F9  P:22  nvTbdiZc  Cy:96637500  PPU-Cy:0
+
+
+load a byte from level data?
+9D2D:  AD 76 06  LDA $0676       A:07  X:05  Y:00  SP:F9  P:22  nvTbdiZc  Cy:96637083  PPU-Cy:0
+9D30:  C9 0D     CMP #$0D        A:07  X:05  Y:00  SP:F9  P:20  nvTbdizc  Cy:96637087  PPU-Cy:0
+9D32:  B0 05     BCS $9D39       A:07  X:05  Y:00  SP:F9  P:A0  NvTbdizc  Cy:96637089  PPU-Cy:0
+9D34:  B1 99     LDA ($99),Y *   A:07  X:05  Y:00  SP:F9  P:A0  NvTbdizc  Cy:96637091  PPU-Cy:0
+9D36:  4C 3E 9D  JMP $9D3E       A:A0  X:05  Y:00  SP:F9  P:A0  NvTbdizc  Cy:96637096  PPU-Cy:0
+9D39:  20 BE FD  JSR $FDBE
+9D3C:  A5 A3     LDA $A3
+9D3E:  60        RTS             A:A0  X:05  Y:00  SP:F9  P:A0  NvTbdizc  Cy:96637099  PPU-Cy:0
+
+
+switch banks?
+F077:  48        PHA             A:07  X:27  Y:0A  SP:F9  P:21  nvTbdizC  Cy:96637033  PPU-Cy:0
+F078:  8D 76 06  STA $0676       A:07  X:27  Y:0A  SP:F8  P:21  nvTbdizC  Cy:96637036  PPU-Cy:0
+F07B:  A9 87     LDA #$87        A:07  X:27  Y:0A  SP:F8  P:21  nvTbdizC  Cy:96637040  PPU-Cy:0
+F07D:  8D 5C 07  STA $075C       A:87  X:27  Y:0A  SP:F8  P:A1  NvTbdizC  Cy:96637042  PPU-Cy:0
+F080:  8D 00 80  STA $8000       A:87  X:27  Y:0A  SP:F8  P:A1  NvTbdizC  Cy:96637046  PPU-Cy:0
+F083:  68        PLA             A:87  X:27  Y:0A  SP:F8  P:A1  NvTbdizC  Cy:96637050  PPU-Cy:0
+F084:  8D 01 80  STA $8001       A:07  X:27  Y:0A  SP:F9  P:21  nvTbdizC  Cy:96637054  PPU-Cy:0
+F087:  60        RTS             A:07  X:27  Y:0A  SP:F9  P:21  nvTbdizC  Cy:96637058  PPU-Cy:0
+
+tiles for stage 1-1
+0 - background
+1 - ground middle
+2 - ground top middle
+3 - ground with a top right pixel for down slopes
+4 - right slope
+5 - left slope
+6 - ground with top left pixel for up slopes
+7 - ground top left corner
+8 - ground top right corner
+9 - ground left side
+A - ground right side
+B - green platform left side
+C - green platform middle
+D - green platform right side
+E - green platform single tile
+F - ceiling top left
+10 - ceiling top middle
+11 - ceiling top right
+12 - ceiling left side
+13 - ceiling middle
+14 - ceiling right side
+15 - ceiling single vertical top
+16 - ceiling single vertical middle
+17 - ceiling single vertical bottom
+18 - ceiling single vertical top
+19 - green platform left side
+1A - green platform middle
+1B - green platform right side
+1C - column middle
+1D - ceiling bottom left
+1E - ceiling bottom middle
+1F - ceiling bottom right
+20 - ceiling single horizontal middle
+21 - background
+22 - background
+23 - background
+24 - background
+25 - background palette 2 color 3
+26 - background palette 2 color 3
+27 - background palette 2 color 3
+28 - red platform left
+29 - red platform middle
+2A - red platform right
+2B - background
+2C - background
+2D - background
+2E - background
+2F - background
+30 - background
+31 - background
+32 - background
+33 - background
+34 - background
+35 - background
+36 - background
+37 - background
+38 - column top
+39 - column middle with shadow
+3A - column middle
+3B - background
+3C - background
+3D - background
+3E - background
+3F - background
+40 - background
+41 - Arch
+42 - Arch black background
+43 - springboard
+44 - springboard black background
+45 - springboard without board
+46 - spinner
+47 - spinner at 45 degrees
+48 - goal tape front post
+49 - goal tape
+4A - goal tape rear post
+4B - card
+4C - 1up
+4D - card black background
+4E - 1up black background
+4F - right arrow
+50 - up arrow
+51 - springboard downward facing
+52 - springboard downward facing black background
+53 - black background
+54 - black background
+55 - springboard without board
+56 - goal tape front post red tape
+57 - goal tape red tape
+58 - goal tape rear post red tape
+59 - card (CosMc)
+5A - card (uncollectable)
+5B - block
+5C - background
+5D - background
+5E - background
+5F - background
+60 - block with hidden spring
+61 - block with hidden rewind
+62 - background
+63 - background
+64 - block with black background
+65 - rewind
+66 - background
+67 - background
+68 - background
+69 - background
+6A - sand with 1up, black background
+6B - 1up black background
+6C - background
+6D - black background
+6E - right arrow
+6F - up arrow
+70 - goal post no tape
+71 - background
+72 - goal post no tape
+73 - giant spring top left
+74 - giant spring top right
+75 - goal post no tape
+76 - background
+77 - goal post no tape
+78 - giant spring bottom left
+79 - giant spring bottom right
+7A - black background
+7B - background
+7C - background
+7D - background
+7E - background
+7F - background
+80 - background
+81 - blue background
+82 - background mountain wave fade
+83 - background mountain left slope
+84 - background mountain right slope
+85 - background mountain left slope blue background
+86 - background mountain right slope blue background
+87 - background mountain slight right slope blue background
+88 - background mountain flat to slight right slope blue background
+89 - background mountain feature arrow top left
+8A - background mountain feature arrow top right
+8B - background mountain slight left slope to flat
+8C - background mountain slight left slope high
+8D - background mountain slight right slope high
+8E - background mountain flat to slight right slope
+8F - background mountain slight left slope to flat blue background
+90 - background mountain slight left slope high blue background
+91 - background mountain left slope wave fade
+92 - background mountain right slope wave fade
+93 - background mountain right slope with wave fade background
+94 - background mountain left slope with wave fade background
+95 - background mountain left slope with feature arrow
+96 - background mountain right slope with feature arrow
+97 - background mountain feature arrow bottom left
+98 - background mountain feature arrow bottom right
+99 - blue with shadow on the left bottom
+9A - blue with shadow on the left
+9B - blue with shadow on the left feature arrow top right
+9C - blue with shadow on the top left
+9D - blue with shadow on the top left feature arrow top right
+9E - blue with shadow on the top
+9F - blue with shadow on the top arrow feature bottom left
+A0 - blue with shadow on the top right
+A1 - background mountain left slope
+A2 - background mountain wave fade with left shadow
+A3 - background mountain right slope
+A4 - background mountain vertical to left slope exit right
+A5 - background mountain vertical to right slope exit left
+A6 - background mountain right slope with left shadow
+A7 - background mountain left and top shadow
+A8 - background mountain right slope blue background with left shadow
+A9 - background mountain vertical to left slope exit top
+AA - background mountain vertical to right slope exit top
+AB - background
+AC - background
+AD - background
+AE - background
+AF - background
+B0 - background
+B1 - background
+B2 - background
+B3 - background
+B4 - background
+B5 - background
+B6 - background
+B7 - background
+B8 - background
+B9 - background
+BA - background
+BB - background
+BC - background
+BD - background
+BE - background
+BF - background
+C0 - background
+C1 - water surface
+C2 - ceiling top with broken colors
+C3 - ceiling top left with broken colors
+C4 - ceiling top right with broken colors
+C5 - left wall fade with broken colors
+C6 - right wall fade with broken colors
+C7 - water surface
+C8 - water surface
+C9 - water surface
+CA - striped water surface
+CB - left wall rocks big top left
+CC - wall rocks big bottom right
+CD - floor rocks right side no big rock
+CE - water with rocks big rock on the right black background
+CF - water with rock black background
+D0 - water
+D1 - water
+D2 - ceiling middle broken colors
+D3 - ceiling left broken colors
+D4 - ceiling right broken colors
+D5 - left wall fade with broken colors
+D6 - right wall fade with broken colors
+D7 - water
+D8 - water
+D9 - water
+DA - striped water
+DB - left rock wall
+DC - rock wall
+DD - right rock wall
+DE - water with rocks black background
+DF - water with smaller rocks black background
+E0 - waterfall surface
+E1 - green platform left
+E2 - green platform middle
+E3 - green platform right
+E4 - green platform single tile
+E5 - waterfall
+E6 - waterfall bottom half
+E7-FF - background
+
+Mapper is 04 which is MMC3
+
+pattern table chunks are loaded based on the values
+in $077D,X where x is the chunk offset.
+The values from the table at $077D are used to
+index the table at $A111 on page 1
+the offset is written to $8000 and the
+value is written to $8001
+
+CHR consists of 1k chunks starting at 0x20010
+bytes 2-5 of the level data specify the indexes
+for each 4k chunk used in the level
+those chunks are switched to at level load time
+and switching is done on the fly for bg animations
+
+the tile id is used as an index to
+0x6000, 0x6100,
+0x6200, 0x6300,
+
+the tile to pattern table map looks like it is unpacked
+from 0x6700 to 0x6000
+the format is
+ 0-3: ID ? it compares each of theseo a 4 entry table at 0x69A maybe stuff that was previously unpacked?
+ 4: size
+ consectutive chunks sized based on byte 4
+ are copied to 0x6000, 0x6100, etc.
+ note that the 64 byte region is memset to 0 first
+ so the size may be less, but it is 0 padded to 64 bytes
+the data at 0x6700 gets put there by
+decompressing from 0XB061. I think
+byte 0[7:4] is offset bits and 0[3:0] is length bits
+a 0 memcpy does seem to be the end signature
+this is in the rom at 0x13071
+that was map for a 1k pattern table chunk
+there is probably a table that specifies
+where the map for each pattern table chunk is
+the other chunks for stage one are at:
+ 0xB061 -> rom 0x13071
+ 0xAE79 -> rom 0x12E89
+ 0xB93D -> rom 0x1394D
+ 0xB605 -> rom 0x13615
+A2 B1 D8 EC 54 70 22
+10 1 00010101 1 00011101 1 00011101 
+1 00010101 0 001110 00000 100010
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
