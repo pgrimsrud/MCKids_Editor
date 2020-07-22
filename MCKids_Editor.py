@@ -7,9 +7,17 @@ rom = open(file_name, "rb").read()
 ines = rom[0:0x10]
 rom = rom[0x10:]
 chr_rom = rom[0x20000:0x20400]
+
+# this is a magic number and we'll need to figure out how the game points to the leves
+# and do that instead
 stage_data = rom[0xE000:]
+
+# need to do general bank mapping instead
 bank1 = rom[0x2000:]
 
+# this function does the same decompression that the game does and seems to be working
+# for both stage 1 and the pattern table mapping. note that the offset_size and length_size are
+# variable and each compressed thing will specify these values
 def decompress(data, offset_size, length_size):
     bit_ptr = 0
     result = []
@@ -20,7 +28,6 @@ def decompress(data, offset_size, length_size):
             for i in range(0,8):
                 byte += ((data[bit_ptr>>3] >> (7-(bit_ptr & 7))) & 1) << (7-i)
                 bit_ptr += 1
-            #print("byte 0x%X" % byte)
             result.append(byte)
         else:
             bit_ptr += 1
@@ -35,27 +42,26 @@ def decompress(data, offset_size, length_size):
             if offset == 0 and length == 0:
                 break
             length += 3
-            #print("offset 0x%X" % offset)
-            #print("length 0x%X" % length)
             for i in range(0,length):
-                print("%d %d" % (len(result), offset))
                 result.append(result[len(result)-offset])
 
     return result
 
+# these are magic numbers for stage 1
+# will need to figure out how the stage game does this instead
 tile_map_comp = []
 tile_map_comp.append(rom[0x13061:])
 tile_map_comp.append(rom[0x12E79:])
 tile_map_comp.append(rom[0x1393D:])
 tile_map_comp.append(rom[0x13605:])
-#for i in range(0,50):
-#    print("0x%0X" % tile_map_comp[i])
+
+# will need to make functions to reload these, and gui options to drive them
 tile_map_raw = []
 tile_map_raw.append(decompress(tile_map_comp[0][1:], tile_map_comp[0][0] >> 4, tile_map_comp[0][0] & 0xF))
 tile_map_raw.append(decompress(tile_map_comp[1][1:], tile_map_comp[1][0] >> 4, tile_map_comp[1][0] & 0xF))
 tile_map_raw.append(decompress(tile_map_comp[2][1:], tile_map_comp[2][0] >> 4, tile_map_comp[2][0] & 0xF))
 tile_map_raw.append(decompress(tile_map_comp[3][1:], tile_map_comp[3][0] >> 4, tile_map_comp[3][0] & 0xF))
-#print(tile_map_raw)
+
 tile_map_size = []
 tile_map_size.append(tile_map_raw[0][4])
 tile_map_size.append(tile_map_raw[1][4])
@@ -80,14 +86,11 @@ for i in range(0,4):
     for j in range(0,64-tile_map_size[3]):
         tile_map[i].append(0)
 
-print(tile_map_raw[1])
-#tile_map.append(tile_map_raw[5+tile_map_size:5+tile_map_size*2])
-#tile_map.append(tile_map_raw[5+tile_map_size*2:5+tile_map_size*3])
-#tile_map.append(tile_map_raw[5+tile_map_size*3:5+tile_map_size*4])
-
+#this probably needs to become class based and gui driven
 stage_width = stage_data[0]
 stage_height = stage_data[1]
 
+# this is a magic number for stage 1, need to figure out how the game is doing this
 chr_map = bank1[0x111:]
 
 rom = bytearray(rom)
@@ -113,30 +116,26 @@ for i in range(0,spawn_count):
     spawn_property.append(stage_spawn_info[3*spawn_count+i])
 stage_tile_info = stage_spawn_info[4*spawn_count:]
 
-print(stage_tile_info)
-print(spawn_count)
-print(spawn_x[0])
-
+# need to figure out how the game does this
 palette = [(0,0,0),
            (100,100,100),
            (200,200,200),
            (255,255,255)]
 
+# haven't even started on attribute tables
+
+#this converts the 16 byte pattern table data to an array of color indexes 0-3 for the 8x8 tile
 def pattern_map(pattern):
     pixels = []
     for i in range(0,64):
         pixels.append((((pattern[(i>>3) + 8] >> (7 - (i & 7))) & 1) << 1) + (pattern[i>>3] >> (7 - (i & 7)) & 1))
     return pixels
 
-#first = pattern_map(chr_rom[0x20:0x30])
-
+# the main window
 window = Tk()
 window.geometry("1024x" + str(stage_height*16*2 + 16))
-#container = Frame(window)
 
-#canvas = Canvas(window, width=32, height=32, borderwidth=0, highlightthickness=0)
-#canvas2 = Canvas(window, width=32, height=32, borderwidth=0, highlightthickness=0)
-
+# this creates an image for the tile from the pattern table and palette
 def GetImage(num):
     pattern = pattern_map(chr_data[num*0x10:num*0x10+0x10])
 
@@ -150,82 +149,36 @@ def GetImage(num):
 
     return img
 
+# this copies a tile into a specified location in a larger image
+def ImageCopy(dst, src, x, y, width, height):
+    for i in range(0, width):
+        for j in range(0, height):
+            dst.putpixel((x+i, y+j), src.getpixel((i, j)))
 
-#photo = ImageTk.PhotoImage(img)
-
-#canvas.create_image(0,0,anchor=NW,image=photo)
-#canvas2.create_image(32,0,anchor=NE,image=photo)
-#canvas.place(x=0, y=0, width=32, height=32)
-#canvas2.place(x=32, y=0, width=32, height=32)
-
-#scrollable_frame = Frame(window)
-
+# this needs to be reworked probably, but for now it is the live set of tiles in the pattern table in image form
 photo = []
-canvas = []
 
 for i in range(0,256):
-    photo.append(ImageTk.PhotoImage(GetImage(i)))
-    #canvas.append(Canvas(window, width=32, height=32, borderwidth=0, highlightthickness=0))
-    #canvas[i].create_image(0,0,anchor=NW,image=photo[i])
-    #canvas[i].place(x=(i&0xF)*32, y=(i>>4)*32, width=32, height=32)
+    photo.append(GetImage(i))
 
-#scrollbar = Scrollbar(window, orient=HORIZONTAL)
-#scrollbar.pack(side=BOTTOM, fill=Y)
-#stage_canvas = Canvas(window, width=16*stage_width*2, height=16*stage_height*2, borderwidth=0, highlightthickness=0, xscrollcommand=scrollbar.set)
 
-#scrollable_frame = Frame(stage_canvas)
-
-#scrollable_frame.bind("<Configure>", lambda e: stage_canvas.configure( scrollregion=stage_canvas.bbox("all")))
-
-#stage_canvas.create_window((0, 0), window=scrollable_frame, anchor=NW)
-
-#stage_canvas.configure(xscrollcommand=scrollbar.set)
+# use the decompressed tiles from the stage, the tile map, and the pattern table to create an image of the stage
+canvas = []
 
 scrollbar = Scrollbar(window, orient=HORIZONTAL)
 scrollbar.place(x=0, y = stage_height*16*2, width = 1024)
 
 stage_canvas = Canvas(window, width=512, height=16*stage_height*2, borderwidth=0, highlightthickness=0)
+stage = Image.new('RGB', (stage_width*16*2,stage_height*16*2))
 for i in range(stage_width * stage_height):
-    #print("%d %d" % (len(tile_map[0]), stage_tile_info[i]))
-    #print("%d %d %d %d" % (tile_map[0][0], tile_map[1][19], tile_map[2][19], tile_map[3][19]))
-    stage_canvas.create_image((i % stage_width) * 16 * 2, (int(i / stage_width)) * 16 * 2, anchor=NW, image=photo[tile_map[0][stage_tile_info[i]]])
-    stage_canvas.create_image((i % stage_width) * 16 * 2 + 16, (int(i / stage_width)) * 16 * 2, anchor=NW, image=photo[tile_map[1][stage_tile_info[i]]])
-    stage_canvas.create_image((i % stage_width) * 16 * 2, (int(i / stage_width)) * 16 * 2 + 16, anchor=NW, image=photo[tile_map[2][stage_tile_info[i]]])
-    stage_canvas.create_image((i % stage_width) * 16 * 2 + 16, (int(i / stage_width)) * 16 * 2 + 16, anchor=NW, image=photo[tile_map[3][stage_tile_info[i]]])
+    ImageCopy(stage, photo[tile_map[0][stage_tile_info[i]]], (i % stage_width) * 16 * 2, (int(i / stage_width)) * 16 * 2, 16, 16)
+    ImageCopy(stage, photo[tile_map[1][stage_tile_info[i]]], (i % stage_width) * 16 * 2 + 16, (int(i / stage_width)) * 16 * 2, 16, 16)
+    ImageCopy(stage, photo[tile_map[2][stage_tile_info[i]]], (i % stage_width) * 16 * 2, (int(i / stage_width)) * 16 * 2 + 16, 16, 16)
+    ImageCopy(stage, photo[tile_map[3][stage_tile_info[i]]], (i % stage_width) * 16 * 2 + 16, (int(i / stage_width)) * 16 * 2 + 16, 16, 16)
 
+pi = ImageTk.PhotoImage(stage)
+stage_canvas.create_image(0, 0, anchor=NW, image=pi)
 stage_canvas.place(x=0, y=0, width = stage_width*16*2, anchor=NW, height = stage_height*16*2)
 scrollbar.config(command=stage_canvas.xview)
-
-#container.pack()
-
-#stage_canvas.place(x=0, y=0, width=stage_width*32, height=stage_height*32)
-
-#stage_canvas.pack()
-#scrollbar.pack(side="bottom", fill="y")
-#scrollbar.config(command=stage_canvas.xview)
-
-#stage_canvas.configure(scrollregion=stage_canvas.bbox("all"))
-#container.place(x=0, y=0, width=512, height=stage_height*32)
-#scrollable_frame.place(x=0, y=0, width=512, height=stage_height*32)
-#scrollbar.place(x=0, y=stage_height*32, width=512)
-
-
-
-
-#this works
-#sc = Scrollbar(window, orient=HORIZONTAL)
-#sc.place(x=0, y=16, width=100)
-#
-#cv = Canvas(window, width=16*20, height=16)
-#for l in range(20):
-#    cv.create_image(l*16, 16, image = photo[l])
-#
-#cv.place(x=0, y=0, width=16*20, anchor=NW, height=16)
-#sc.config(command=cv.xview)
-
-print(tile_map[0])
-print(tile_map[1])
-print(tile_map[2])
-print(tile_map[3])
 
 window.mainloop()
