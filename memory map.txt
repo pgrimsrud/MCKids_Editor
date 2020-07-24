@@ -1,0 +1,43 @@
+Current Sprites
+0430 - 043F (000F) = Type
+0440 - 044F (000F) = Y position - high byte (01 per 4 blocks)
+0450 - 045F (000F) = X position - high byte (01 per 4 blocks)
+0460 - 046F (000F) = Y position - low byte (04 per pixel, 40 per block)
+0470 - 047F (000F) = X position - low byte (04 per pixel, 40 per block)
+0480 - 048F (000F) = ???
+04A0 - 04AF (000F) = Vertical speed
+04B0 - 04BF (000F) = Horizontal speed
+04C0 - 04CF (000F) = ???
+04D0 - 04DF (000F) = ???
+04E0 - 04EF (000F) = ???
+04F0 - 04FF (000F) = ???
+0500 - 050F (000F) = ???
+0510 - 051F (000F) = ???
+Note: possibly more bytes after these
+
+03EC - 03F3 = Current player inputs 1 byte per button, in order: right, left, down, up, start, select, B, A
+
+Misc
+03F4 = Upwards momentum (jump force).
+03F6 = 1 when on the ground
+0403 = 3 when crouching.
+0417 = 1 when in the air. 0 when standing
+0428 = Enemies killed (for health bonus)
+042E = Controller 1 inputs, one bit per button
+042F = Controller 2 inputs, one bit per button
+057D = Ms collected (skips A-F - ex. 83 hex = 83 decimal)
+057E = Bonus stage activated (Ms over 100) (unverified)
+057F = Lives (displayed as byte + 1)
+0580 = Health (displayed as byte + 1)
+Setting health above 3 works, but is not displayed
+
+0555 = Horizontal speed (negative = left) (unverified)
+0556 = Vertical speed (negative = up) (unverified)
+
+06EC - 06F2 (0007) = Stage clear flags
+06F4 - 06FA (0007) = Goal block flags (same pattern as stage clear flags)
+06FC - 0702 (0007) = Unidentified flags
+
+0749 = Player died. Set to 1 at the start of death animation.
+
+6000 - 7FFF (2000) = Decompressed data
