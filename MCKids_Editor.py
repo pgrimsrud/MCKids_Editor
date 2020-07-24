@@ -8,12 +8,28 @@ ines = rom[0:0x10]
 rom = rom[0x10:]
 chr_rom = rom[0x20000:0x20400]
 
-# this is a magic number and we'll need to figure out how the game points to the leves
-# and do that instead
-stage_data = rom[0xE000:]
 
-# need to do general bank mapping instead
-bank1 = rom[0x2000:]
+# After the header the next 128k consists of 16 8k chunks called banks
+# the routine at 0xF077 loads the bank you pass in the A register
+# the requested bank is loaded at 0xA000
+# the last two banks are always statically loaded at 0xC000 and 0xE000
+bank_base = 0xA000
+bank = []
+for i in range(0,16):
+    bank.append(rom[0x2000*i : 0x2000*i + 0x2000])
+
+# stage data pointers are in bank 1. The data consists of 3 arrays of 0x5D (93) elements
+# The three arrays are lower address byte, upper address byte, bank number
+# note that the address in the table includes the base bank offset of 0xA000
+stages = []
+for i in range(0,0x5D):
+    stages.append({'bank': bank[1][0x5F6 + i], 'offset': ((bank[1][0x599 + i] << 8) + bank[1][0x53C + i] - bank_base)})
+
+# stage ID comes from an array at bank 1 offset 0x77F. The index to that array
+# comes from 0x6DE which is updated when walking on the map
+
+stage_num = 41
+stage_data = bank[stages[stage_num]['bank']][stages[stage_num]['offset']:]
 
 # this function does the same decompression that the game does and seems to be working
 # for both stage 1 and the pattern table mapping. note that the offset_size and length_size are
@@ -47,13 +63,16 @@ def decompress(data, offset_size, length_size):
 
     return result
 
-# these are magic numbers for stage 1
-# will need to figure out how the stage game does this instead
+# There is a table that points to the bank and address of the tile map
+# The table consists of 3 arrays of length 0x2C (44). The three arrays are
+# lower address byte, upper address byte, bank number
+# note that the address in the table includes the base bank offset of 0xA000
 tile_map_comp = []
-tile_map_comp.append(rom[0x13061:])
-tile_map_comp.append(rom[0x12E79:])
-tile_map_comp.append(rom[0x1393D:])
-tile_map_comp.append(rom[0x13605:])
+tile_map_comp.append(bank[bank[1][0xE5 + stage_data[2]]][(bank[1][0xB9 + stage_data[2]] << 8) + bank[1][0x8D + stage_data[2]] - bank_base:])
+tile_map_comp.append(bank[bank[1][0xE5 + stage_data[3]]][(bank[1][0xB9 + stage_data[3]] << 8) + bank[1][0x8D + stage_data[3]] - bank_base:])
+tile_map_comp.append(bank[bank[1][0xE5 + stage_data[4]]][(bank[1][0xB9 + stage_data[4]] << 8) + bank[1][0x8D + stage_data[4]] - bank_base:])
+tile_map_comp.append(bank[bank[1][0xE5 + stage_data[5]]][(bank[1][0xB9 + stage_data[5]] << 8) + bank[1][0x8D + stage_data[5]] - bank_base:])
+
 
 # will need to make functions to reload these, and gui options to drive them
 tile_map_raw = []
@@ -91,7 +110,7 @@ stage_width = stage_data[0]
 stage_height = stage_data[1]
 
 # this is a magic number for stage 1, need to figure out how the game is doing this
-chr_map = bank1[0x111:]
+chr_map = bank[1][0x111:]
 
 rom = bytearray(rom)
 chr_data  = rom[0x20000 + (0x400 * chr_map[stage_data[2]]):0x20000 + (0x400 * chr_map[stage_data[2]]) + 0x400]
