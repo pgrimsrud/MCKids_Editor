@@ -143,25 +143,34 @@ def pattern_map(pattern):
         pixels.append((((pattern[(i>>3) + 8] >> (7 - (i & 7))) & 1) << 1) + (pattern[i>>3] >> (7 - (i & 7)) & 1))
     return pixels
 
-# this creates an image for the tile from the pattern table and palette
-def GetImage(chr_data, palette, num):
-    pattern = pattern_map(chr_data[num*0x10:num*0x10+0x10])
+GameCharacters = []
 
-    img = Image.new('RGB', (16,16))
+def loadGameCharacters(chr_data):
+    GameCharacters.clear()
+    for i in range(0,256):
+        GameCharacters.append(chrToIndexedImage(chr_data, i))
 
-    for i in range(0,8):
-        for j in range(0,8):
-            for k in range(0,2):
-                for l in range(0,2):
-                    img.putpixel((i*2+k,j*2+l), palette[pattern[(j<<3) + i]])
-
+def chrToIndexedImage(chr_data, num):
+    pixels = pattern_map(chr_data[num * 0x10: num * 0x10 + 0x10])
+    img = Image.new('P', (8, 8))
+    for x in range(8):
+        for y in range(8):
+            img.putpixel((x, y), pixels[x + y * 8])
+    img = img.resize((16, 16))
     return img
 
-# this copies a tile into a specified location in a larger image
-def ImageCopy(dst, src, x, y, width, height):
-    for i in range(0, width):
-        for j in range(0, height):
-            dst.putpixel((x+i, y+j), src.getpixel((i, j)))
+
+def drawCharacter(canvas, x, y, palette, num):
+    GameCharacters[num].putpalette(palette)
+    canvas.paste(GameCharacters[num], (x, y))
+
+def rgbaToRgbPalette(rgbaPalette):
+    palette = []
+    for i in range(len(rgbaPalette)):
+        palette.append(rgbaPalette[i][0])
+        palette.append(rgbaPalette[i][1])
+        palette.append(rgbaPalette[i][2])
+    return palette
 
 # this function does the same decompression that the game does and seems to be working
 # for both stage 1 and the pattern table mapping. note that the offset_size and length_size are
@@ -409,23 +418,18 @@ def render_stage(canvas, stage_num):
         spawn_property.append(stage_spawn_info[3*spawn_count+i])
     stage_tile_info = stage_spawn_info[4*spawn_count:]
 
-    # this needs to be reworked probably, but for now it is the live set of tiles in the pattern table in image form
-    photo = [[],[],[],[]]
-
-    for i in range(0,256):
-        for j in range(0,4):
-            photo[j].append(GetImage(chr_data, palette[j], i))
-
+    loadGameCharacters(chr_data)
 
     # use the decompressed tiles from the stage, the tile map, and the pattern table to create an image of the stage
-
-
     stage = Image.new('RGB', (stage_width*16*2,stage_height*16*2))
     for i in range(stage_width * stage_height):
-        ImageCopy(stage, photo[attribute_lookup[tile_palette_map[stage_tile_info[i]]]][tile_map[0][stage_tile_info[i]]], (i % stage_width) * 16 * 2, (int(i / stage_width)) * 16 * 2, 16, 16)
-        ImageCopy(stage, photo[attribute_lookup[tile_palette_map[stage_tile_info[i]]]][tile_map[1][stage_tile_info[i]]], (i % stage_width) * 16 * 2 + 16, (int(i / stage_width)) * 16 * 2, 16, 16)
-        ImageCopy(stage, photo[attribute_lookup[tile_palette_map[stage_tile_info[i]]]][tile_map[2][stage_tile_info[i]]], (i % stage_width) * 16 * 2, (int(i / stage_width)) * 16 * 2 + 16, 16, 16)
-        ImageCopy(stage, photo[attribute_lookup[tile_palette_map[stage_tile_info[i]]]][tile_map[3][stage_tile_info[i]]], (i % stage_width) * 16 * 2 + 16, (int(i / stage_width)) * 16 * 2 + 16, 16, 16)
+        x = (i % stage_width) * 16 * 2
+        y = int(i / stage_width) * 16 * 2
+        p = rgbaToRgbPalette(palette[attribute_lookup[tile_palette_map[stage_tile_info[i]]]])
+        drawCharacter(stage, x, y, p, tile_map[0][stage_tile_info[i]])
+        drawCharacter(stage, x + 16, y, p, tile_map[1][stage_tile_info[i]])
+        drawCharacter(stage, x, y + 16, p, tile_map[2][stage_tile_info[i]])
+        drawCharacter(stage, x + 16, y + 16, p, tile_map[3][stage_tile_info[i]])
 
     canvas.config(scrollregion=(0, 0, stage_width*16*2, stage_height*16*2))
 
