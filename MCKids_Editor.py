@@ -1,5 +1,6 @@
 from tkinter import *
 from PIL import Image, ImageTk
+from compression import compress, decompress
 
 file_name = "mckids.nes"
 
@@ -143,14 +144,14 @@ def pattern_map(pattern):
         pixels.append((((pattern[(i>>3) + 8] >> (7 - (i & 7))) & 1) << 1) + (pattern[i>>3] >> (7 - (i & 7)) & 1))
     return pixels
 
-GameCharacters = []
+game_characters = []
 
-def loadGameCharacters(chr_data):
-    GameCharacters.clear()
+def load_game_characters(chr_data):
+    game_characters.clear()
     for i in range(0,256):
-        GameCharacters.append(chrToIndexedImage(chr_data, i))
+        game_characters.append(chr_to_indexed_image(chr_data, i))
 
-def chrToIndexedImage(chr_data, num):
+def chr_to_indexed_image(chr_data, num):
     pixels = pattern_map(chr_data[num * 0x10: num * 0x10 + 0x10])
     img = Image.new('P', (8, 8))
     for x in range(8):
@@ -160,11 +161,11 @@ def chrToIndexedImage(chr_data, num):
     return img
 
 
-def drawCharacter(canvas, x, y, palette, num):
-    GameCharacters[num].putpalette(palette)
-    canvas.paste(GameCharacters[num], (x, y))
+def draw_character(canvas, x, y, palette, num):
+    game_characters[num].putpalette(palette)
+    canvas.paste(game_characters[num], (x, y))
 
-def rgbaToRgbPalette(rgbaPalette):
+def rgba_to_rgb_palette(rgbaPalette):
     palette = []
     for i in range(len(rgbaPalette)):
         palette.append(rgbaPalette[i][0])
@@ -172,37 +173,6 @@ def rgbaToRgbPalette(rgbaPalette):
         palette.append(rgbaPalette[i][2])
     return palette
 
-# this function does the same decompression that the game does and seems to be working
-# for both stage 1 and the pattern table mapping. note that the offset_size and length_size are
-# variable and each compressed thing will specify these values
-def decompress(data, offset_size, length_size):
-    bit_ptr = 0
-    result = []
-    while 1:
-        if (data[bit_ptr>>3] >> (7-(bit_ptr & 7))) & 1 == 1:
-            bit_ptr += 1
-            byte = 0
-            for i in range(0,8):
-                byte += ((data[bit_ptr>>3] >> (7-(bit_ptr & 7))) & 1) << (7-i)
-                bit_ptr += 1
-            result.append(byte)
-        else:
-            bit_ptr += 1
-            offset = 0
-            for i in range(0,offset_size):
-                offset += ((data[bit_ptr>>3] >> (7-(bit_ptr & 7))) & 1) << (offset_size-1-i)
-                bit_ptr += 1
-            length = 0
-            for i in range(0,length_size):
-                length += ((data[bit_ptr>>3] >> (7-(bit_ptr & 7))) & 1) << (length_size-1-i)
-                bit_ptr += 1
-            if offset == 0 and length == 0:
-                break
-            length += 3
-            for i in range(0,length):
-                result.append(result[len(result)-offset])
-
-    return result
 
 def render_stage(canvas, stage_num):
     global rom
@@ -401,7 +371,6 @@ def render_stage(canvas, stage_num):
     chr_data += rom[0x20000 + (0x400 * chr_map[stage_data[5]]):0x20000 + (0x400 * chr_map[stage_data[5]]) + 0x400]
 
     stage_decompressed = decompress(stage_data[7:], stage_data[6] >> 4, stage_data[6] & 0xF)
-    #print(stage_decompressed)
 
     spawn_count = stage_decompressed[0]
     stage_spawn_info = stage_decompressed[1:]
@@ -418,18 +387,18 @@ def render_stage(canvas, stage_num):
         spawn_property.append(stage_spawn_info[3*spawn_count+i])
     stage_tile_info = stage_spawn_info[4*spawn_count:]
 
-    loadGameCharacters(chr_data)
+    load_game_characters(chr_data)
 
     # use the decompressed tiles from the stage, the tile map, and the pattern table to create an image of the stage
     stage = Image.new('RGB', (stage_width*16*2,stage_height*16*2))
     for i in range(stage_width * stage_height):
         x = (i % stage_width) * 16 * 2
         y = int(i / stage_width) * 16 * 2
-        p = rgbaToRgbPalette(palette[attribute_lookup[tile_palette_map[stage_tile_info[i]]]])
-        drawCharacter(stage, x, y, p, tile_map[0][stage_tile_info[i]])
-        drawCharacter(stage, x + 16, y, p, tile_map[1][stage_tile_info[i]])
-        drawCharacter(stage, x, y + 16, p, tile_map[2][stage_tile_info[i]])
-        drawCharacter(stage, x + 16, y + 16, p, tile_map[3][stage_tile_info[i]])
+        p = rgba_to_rgb_palette(palette[attribute_lookup[tile_palette_map[stage_tile_info[i]]]])
+        draw_character(stage, x, y, p, tile_map[0][stage_tile_info[i]])
+        draw_character(stage, x + 16, y, p, tile_map[1][stage_tile_info[i]])
+        draw_character(stage, x, y + 16, p, tile_map[2][stage_tile_info[i]])
+        draw_character(stage, x + 16, y + 16, p, tile_map[3][stage_tile_info[i]])
 
     canvas.config(scrollregion=(0, 0, stage_width*16*2, stage_height*16*2))
 
