@@ -139,7 +139,6 @@ ti = None
 
 stage_width = 0
 stage_height = 0
-tile_types = []
 stage_tile_info = []
 
 #this converts the 16 byte pattern table data to an array of color indexes 0-3 for the 8x8 tile
@@ -178,6 +177,55 @@ def rgba_to_rgb_palette(rgbaPalette):
         palette.append(rgbaPalette[i][2])
     return palette
 
+class LevelData:
+    def __init__(self):
+        self.tile_map = []
+        self.tile_sets = [None,None,None,None]
+
+    def get_tile_at(self, index):
+        tile_index = self.tile_map[index]
+        tile_set = (int)(tile_index / 64)
+        return self.tile_sets[tile_set].tiles[tile_index % 64]
+
+    def set_tile_map(self, map):
+        self.tile_map = map
+
+class TileSet:
+    def __init__(self):
+        self.tiles = []
+
+    def from_decompressed_bytes(self, data, index):
+        self.tiles.clear()
+        tile_set_size = data[4]
+
+        for i in range(0, 64):
+            tile = Tile()
+
+            if tile_set_size > i:
+                for j in range(0, 4):
+                    tile.characters[j] = data[5 + i + (j * tile_set_size)] + 0x40 * index
+                type_pos = 6 + i + (tile_set_size * 5)
+                if len(data) > type_pos:
+                    tile.tile_type = data[type_pos]
+
+            self.tiles.append(tile)
+
+class Tile:
+    def __init__(self):
+        self.characters = [0,0,0,0]
+        self.tile_type = 0
+
+    def draw(self, canvas, x, y, palette):
+        game_characters[self.characters[0]].putpalette(palette)
+        canvas.paste(game_characters[self.characters[0]], (x, y))
+        game_characters[self.characters[1]].putpalette(palette)
+        canvas.paste(game_characters[self.characters[1]], (x+16, y))
+        game_characters[self.characters[2]].putpalette(palette)
+        canvas.paste(game_characters[self.characters[2]], (x, y+16))
+        game_characters[self.characters[3]].putpalette(palette)
+        canvas.paste(game_characters[self.characters[3]], (x+16, y+16))
+
+level = LevelData()
 
 def render_stage(canvas, stage_num):
     global rom
@@ -185,7 +233,6 @@ def render_stage(canvas, stage_num):
     global photo
     global stage
     global stage_width
-    global tile_types
     global stage_tile_info
 
     stage_data = []
@@ -341,45 +388,6 @@ def render_stage(canvas, stage_num):
     tile_map_raw.append(decompress(tile_map_comp[2][1:], tile_map_comp[2][0] >> 4, tile_map_comp[2][0] & 0xF))
     tile_map_raw.append(decompress(tile_map_comp[3][1:], tile_map_comp[3][0] >> 4, tile_map_comp[3][0] & 0xF))
 
-    tile_map_size = []
-    tile_map_size.append(tile_map_raw[0][4])
-    tile_map_size.append(tile_map_raw[1][4])
-    tile_map_size.append(tile_map_raw[2][4])
-    tile_map_size.append(tile_map_raw[3][4])
-    tile_map = [[],[],[],[]]
-
-    tile_types = []
-    for i in range(0,4):
-        for j in range(5 + tile_map_size[0]*i,5 + tile_map_size[0]*(i+1)):
-            tile_map[i].append(tile_map_raw[0][j])
-        for j in range(0,64-tile_map_size[0]):
-            tile_map[i].append(0)
-        for j in range(5 + tile_map_size[1]*i,5 + tile_map_size[1]*(i+1)):
-            tile_map[i].append(tile_map_raw[1][j] + 0x40)
-        for j in range(0,64-tile_map_size[1]):
-            tile_map[i].append(0)
-        for j in range(5 + tile_map_size[2]*i,5 + tile_map_size[2]*(i+1)):
-            tile_map[i].append(tile_map_raw[2][j] + 0x80)
-        for j in range(0,64-tile_map_size[2]):
-            tile_map[i].append(0)
-        for j in range(5 + tile_map_size[3]*i,5 + tile_map_size[3]*(i+1)):
-            tile_map[i].append(tile_map_raw[3][j] + 0xC0)
-        for j in range(0,64-tile_map_size[3]):
-            tile_map[i].append(0)
-
-    # extract tile type data
-    for i in range(0,4):
-        start_pos = 6 + tile_map_size[i] * 5
-        end_pos = start_pos + tile_map_size[i]
-        if end_pos >= len(tile_map_raw[i]):
-            end_pos = len(tile_map_raw[i]) - 1
-        for j in range(start_pos, end_pos):
-            tile_types.append(tile_map_raw[i][j])
-        length = end_pos - start_pos
-        if (length < 64):
-            for j in range(length, 64):
-                tile_types.append(0)
-
     #this probably needs to become class based and gui driven
     stage_width = stage_data[0]
     stage_height = stage_data[1]
@@ -410,6 +418,11 @@ def render_stage(canvas, stage_num):
         spawn_property.append(stage_spawn_info[3*spawn_count+i])
     stage_tile_info = stage_spawn_info[4*spawn_count:]
 
+    level.set_tile_map(stage_tile_info)
+    for i in range(0, 4):
+        level.tile_sets[i] = TileSet()
+        level.tile_sets[i].from_decompressed_bytes(tile_map_raw[i], i)
+
     load_game_characters(chr_data)
 
     # use the decompressed tiles from the stage, the tile map, and the pattern table to create an image of the stage
@@ -422,40 +435,39 @@ def render_stage(canvas, stage_num):
         x = (i % stage_width) * 16 * 2
         y = int(i / stage_width) * 16 * 2
         p = rgba_to_rgb_palette(palette[attribute_lookup[tile_palette_map[stage_tile_info[i]]]])
-        draw_character(stage, x, y, p, tile_map[0][stage_tile_info[i]])
-        draw_character(stage, x + 16, y, p, tile_map[1][stage_tile_info[i]])
-        draw_character(stage, x, y + 16, p, tile_map[2][stage_tile_info[i]])
-        draw_character(stage, x + 16, y + 16, p, tile_map[3][stage_tile_info[i]])
+        level.get_tile_at(i).draw(stage, x, y, p)
 
         if show_overlay.get() == 1:
-            if tile_types[stage_tile_info[i]] in completely_solid_types:
+            tile_type = level.get_tile_at(i).tile_type
+            #if tile_type in completely_solid_types:
+            if tile_type in completely_solid_types:
                 overlay_draw.rectangle([x, y, x + 32, y + 32], (255, 0, 0, 200))
 
-            if tile_types[stage_tile_info[i]] == 0x70:
+            if tile_type == 0x70:
                 overlay_draw.line([(x, y+32), (x+16, y+16), (x+32, y+16)], fill=(0, 255, 0, 200), width=4)
-            if tile_types[stage_tile_info[i]] == 0x71:
+            if tile_type == 0x71:
                 overlay_draw.line([(x+32, y), (x+16, y+16), (x+16, y+32)], fill=(0, 255, 0, 200), width=4)
-            if tile_types[stage_tile_info[i]] == 0x72:
+            if tile_type == 0x72:
                 overlay_draw.line([(x, y+16), (x+16, y+16), (x+32, y+32)], fill=(0, 255, 0, 200), width=4)
-            if tile_types[stage_tile_info[i]] == 0x73:
+            if tile_type == 0x73:
                 overlay_draw.line([(x, y), (x+16, y+16), (x+16, y+32)], fill=(0, 255, 0, 200), width=4)
-            if tile_types[stage_tile_info[i]] == 0x74:
+            if tile_type == 0x74:
                 overlay_draw.line([(x+16, y), (x+16, y+16), (x+32, y+32)], fill=(0, 255, 0, 200), width=4)
-            if tile_types[stage_tile_info[i]] == 0x75:
+            if tile_type == 0x75:
                 overlay_draw.line([(x, y), (x+16, y+16), (x+32, y+16)], fill=(0, 255, 0, 200), width=4)
-            if tile_types[stage_tile_info[i]] == 0x76:
+            if tile_type == 0x76:
                 overlay_draw.line([(x, y+16), (x+16, y+16), (x+32, y)], fill=(0, 255, 0, 200), width=4)
-            if tile_types[stage_tile_info[i]] == 0x77:
+            if tile_type == 0x77:
                 overlay_draw.line([(x+16, y), (x+16, y+16), (x, y+32)], fill=(0, 255, 0, 200), width=4)
-            if tile_types[stage_tile_info[i]] == 0x78:
+            if tile_type == 0x78:
                 overlay_draw.line([(x, y+16), (x+32, y+16)], fill=(0, 255, 0, 200), width=4)
-            if tile_types[stage_tile_info[i]] == 0x79:
+            if tile_type == 0x79:
                 overlay_draw.line([(x+16, y), (x+16, y+32)], fill=(0, 255, 0, 200), width=4)
-            if tile_types[stage_tile_info[i]] == 0x7A:
+            if tile_type == 0x7A:
                 overlay_draw.line([(x, y), (x+32, y+32)], fill=(0, 255, 0, 200), width=4)
-            if tile_types[stage_tile_info[i]] == 0x7B:
+            if tile_type == 0x7B:
                 overlay_draw.line([(x, y+32), (x+32, y)], fill=(0, 255, 0, 200), width=4)
-            if tile_types[stage_tile_info[i]] == 0x7C:
+            if tile_type == 0x7C:
                 overlay_draw.line([(x, y+16), (x+32, y+16)], fill=(0, 255, 0, 200), width=4)
                 overlay_draw.line([(x+16, y), (x+16, y+32)], fill=(0, 255, 0, 200), width=4)
 
@@ -501,7 +513,6 @@ def change_stage_dropdown(*args):
 
 def update_info_label(event):
     global stage_width
-    global tile_types
     global stage_tile_info
     global stage_canvas
 
@@ -510,7 +521,7 @@ def update_info_label(event):
     y = (int)(canvas.canvasy(event.y) / 32)
     index = stage_width * y + x
     if len(stage_tile_info) > index:
-        type = tile_types[stage_tile_info[index]]
+        type = level.get_tile_at(index).tile_type
         info_var.set(f'Tile type: 0x{format(type, "02x")}')
     else:
         info_var.set(f'Out of range: {index}')
