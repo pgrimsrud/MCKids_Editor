@@ -1,5 +1,5 @@
 from tkinter import *
-from PIL import Image, ImageTk
+from PIL import Image, ImageDraw, ImageTk
 from compression import compress, decompress
 
 file_name = "mckids.nes"
@@ -339,6 +339,8 @@ def render_stage(canvas, stage_num):
     tile_map_size.append(tile_map_raw[2][4])
     tile_map_size.append(tile_map_raw[3][4])
     tile_map = [[],[],[],[]]
+
+    tile_types = []
     for i in range(0,4):
         for j in range(5 + tile_map_size[0]*i,5 + tile_map_size[0]*(i+1)):
             tile_map[i].append(tile_map_raw[0][j])
@@ -356,6 +358,18 @@ def render_stage(canvas, stage_num):
             tile_map[i].append(tile_map_raw[3][j] + 0xC0)
         for j in range(0,64-tile_map_size[3]):
             tile_map[i].append(0)
+
+    # extract tile type data
+    for i in range(0,4):
+        if len(tile_map_raw[i]) >= 6 + tile_map_size[i] * 6:
+            start_pos = 6 + tile_map_size[i] * 5
+            for j in range(start_pos, start_pos + tile_map_size[i]):
+                tile_types.append(tile_map_raw[i][j])
+            for j in range(0, 64 - tile_map_size[i]):
+                tile_types.append(0)
+        else:
+            for j in range(64):
+                tile_types.append(0)
 
     #this probably needs to become class based and gui driven
     stage_width = stage_data[0]
@@ -390,7 +404,11 @@ def render_stage(canvas, stage_num):
     load_game_characters(chr_data)
 
     # use the decompressed tiles from the stage, the tile map, and the pattern table to create an image of the stage
-    stage = Image.new('RGB', (stage_width*16*2,stage_height*16*2))
+    stage = Image.new('RGBA', (stage_width*16*2,stage_height*16*2))
+    if show_overlay.get() == 1:
+        overlay = Image.new('RGBA', (stage_width*16*2, stage_height*16*2))
+        overlay_draw = ImageDraw.Draw(overlay)
+
     for i in range(stage_width * stage_height):
         x = (i % stage_width) * 16 * 2
         y = int(i / stage_width) * 16 * 2
@@ -400,7 +418,15 @@ def render_stage(canvas, stage_num):
         draw_character(stage, x, y + 16, p, tile_map[2][stage_tile_info[i]])
         draw_character(stage, x + 16, y + 16, p, tile_map[3][stage_tile_info[i]])
 
+        if show_overlay.get() == 1:
+            if tile_types[stage_tile_info[i]] in completely_solid_types:
+                overlay_draw.rectangle([x, y, x + 32, y + 32], (255, 0, 0, 200))
+
+    stage = Image.alpha_composite(stage, overlay)
     canvas.config(scrollregion=(0, 0, stage_width*16*2, stage_height*16*2))
+
+completely_solid_types = [0x08, 0x01, 0x1B, 0x25]
+somewhat_solid_types = []
 
 #something = decompress(bank[9][0x193E:],bank[9][0x193D] >> 4,bank[9][0x193D] & 0xF)
 #print(something)
@@ -413,6 +439,8 @@ for i in range(0,0x5D):
 tkvar = StringVar(window)
 tkvar.set(stage_num_list['0'])
 stage_dropdown = OptionMenu(window, tkvar, *stage_num_list)
+show_overlay = IntVar()
+overlay_checkbox = Checkbutton(window, text="Show solids", variable=show_overlay)
 
 def change_stage_dropdown(*args):
     global window
@@ -430,9 +458,11 @@ def change_stage_dropdown(*args):
     yscrollbar.config(command=stage_canvas.yview)
 
 tkvar.trace('w', change_stage_dropdown)
+show_overlay.trace('w', change_stage_dropdown)
 
 render_stage(stage_canvas, stage_num_list[tkvar.get()])
 stage_dropdown.place(x=5, y=5)
+overlay_checkbox.place(x = 60, y = 8)
 
 
 ti = ImageTk.PhotoImage(stage)

@@ -41,3 +41,44 @@ Setting health above 3 works, but is not displayed
 0749 = Player died. Set to 1 at the start of death animation.
 
 6000 - 7FFF (2000) = Decompressed data
+
+Tile types:
+0x00 = Sky/Nothing
+0x01 = Ground/Solid corner
+0x02 = Slope up right
+0x03 = Slope up left
+0x06 = One way platform
+0x07 = Bouncer/Trampoline
+0x08 = Ground
+0x09 = Moon slope up right 1
+0x0A = Moon slope up right 2
+0x0B = Moon slope up left 1
+0x0C = Moon slope up left 2
+0x17 = Falling bridge
+0x1A = Boat?
+0x1B = some kind of sky thingie?
+0x1D = Burning bridge
+0x1E = Breakable snow
+0x21 = Snow slope up right
+0x22 = Snow slope up left
+0x25 = Snow ground
+0x26 = Snow pile (pick up snow balls)
+0x27 = Rock pile (pick up rocks)
+0x29 = Lava floater
+0x2A = Boss block
+0x2D = Diggable sand
+0x30 = Arch
+0x31 = Card 1
+0x32 = Extra life
+0x33 = Throwable block
+0x34 = Rewind?
+0x35 = Spinner
+0x36 = Card 2
+0x52 = Water?
+0x60 = Fill-in block?
+0x70 = Up right conveyor track
+0x72 = Some kind of track??
+0x73 = Vertical conveyor track
+0x78 = Horizontal conveyor track
+0x79 = stand-on-platform-and-it-moves track?
+0x7A = Up left conveyor track
