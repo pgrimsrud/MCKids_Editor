@@ -369,14 +369,15 @@ def render_stage(canvas, stage_num):
 
     # extract tile type data
     for i in range(0,4):
-        if len(tile_map_raw[i]) >= 6 + tile_map_size[i] * 6:
-            start_pos = 6 + tile_map_size[i] * 5
-            for j in range(start_pos, start_pos + tile_map_size[i]):
-                tile_types.append(tile_map_raw[i][j])
-            for j in range(0, 64 - tile_map_size[i]):
-                tile_types.append(0)
-        else:
-            for j in range(64):
+        start_pos = 6 + tile_map_size[i] * 5
+        end_pos = start_pos + tile_map_size[i]
+        if end_pos >= len(tile_map_raw[i]):
+            end_pos = len(tile_map_raw[i]) - 1
+        for j in range(start_pos, end_pos):
+            tile_types.append(tile_map_raw[i][j])
+        length = end_pos - start_pos
+        if (length < 64):
+            for j in range(length, 64):
                 tile_types.append(0)
 
     #this probably needs to become class based and gui driven
@@ -454,23 +455,10 @@ def render_stage(canvas, stage_num):
                 overlay_draw.line([(x, y), (x+32, y+32)], fill=(0, 255, 0, 200), width=4)
             if tile_types[stage_tile_info[i]] == 0x7B:
                 overlay_draw.line([(x, y+32), (x+32, y)], fill=(0, 255, 0, 200), width=4)
+            if tile_types[stage_tile_info[i]] == 0x7C:
+                overlay_draw.line([(x, y+16), (x+32, y+16)], fill=(0, 255, 0, 200), width=4)
+                overlay_draw.line([(x+16, y), (x+16, y+32)], fill=(0, 255, 0, 200), width=4)
 
-            # if tile_types[stage_tile_info[i]] == 0x74 or tile_types[stage_tile_info[i]] == 0x72:
-            #     overlay_draw.polygon([(x+18, y+30), (x+30, y+30), (x+30, y+18)], fill=(0, 255, 0, 200))
-            # if tile_types[stage_tile_info[i]] == 0x75:
-            #     overlay_draw.polygon([(x+18, y+8), (x+18, y+24), (x+30, y+16)], fill=(0, 255, 0, 200))
-            # if tile_types[stage_tile_info[i]] == 0x76:
-            #     overlay_draw.polygon([(x+18, y+2), (x+30, y+2), (x+30, y+14)], fill=(0, 255, 0, 200))
-            # if tile_types[stage_tile_info[i]] == 0x77:
-            #     overlay_draw.polygon([(x + 8, y + 14), (x + 24, y + 14), (x + 16, y + 5)], fill=(0, 255, 0, 200))
-            # if tile_types[stage_tile_info[i]] == 0x78:
-            #     overlay_draw.polygon([(x+5, y+14), (x+5, y+18), (x+27, y+18), (x+27, y+14)], fill=(0, 255, 0, 200))
-            # if tile_types[stage_tile_info[i]] == 0x79:
-            #     overlay_draw.polygon([(x+14, y+5), (x+18, y+5), (x+18, y+27), (x+14, y+27)], fill=(0, 255, 0, 200))
-            # if tile_types[stage_tile_info[i]] == 0x7A:
-            #     overlay_draw.polygon([(x+2, y+4), (x+4, y+2), (x+30, y+28), (x+28, y+30)], fill=(0, 255, 0, 200))
-            # if tile_types[stage_tile_info[i]] == 0x7b:
-            #     overlay_draw.polygon([(x+30, y+4), (x+28, y+2), (x+2, y+28), (x+4, y+30)], fill=(0, 255, 0, 200))
             overlay_draw.rectangle([x, y, x + 32, y + 32], outline=(255,255,255,100))
 
     if show_overlay.get() == 1:
