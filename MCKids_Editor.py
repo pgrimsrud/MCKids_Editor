@@ -422,7 +422,8 @@ def render_stage(canvas, stage_num):
             if tile_types[stage_tile_info[i]] in completely_solid_types:
                 overlay_draw.rectangle([x, y, x + 32, y + 32], (255, 0, 0, 200))
 
-    stage = Image.alpha_composite(stage, overlay)
+    if show_overlay.get() == 1:
+        stage = Image.alpha_composite(stage, overlay)
     canvas.config(scrollregion=(0, 0, stage_width*16*2, stage_height*16*2))
 
 completely_solid_types = [0x08, 0x01, 0x1B, 0x25]
