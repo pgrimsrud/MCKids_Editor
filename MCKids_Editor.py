@@ -137,6 +137,11 @@ pi = None
 photo = None
 ti = None
 
+stage_width = 0
+stage_height = 0
+tile_types = []
+stage_tile_info = []
+
 #this converts the 16 byte pattern table data to an array of color indexes 0-3 for the 8x8 tile
 def pattern_map(pattern):
     pixels = []
@@ -179,6 +184,9 @@ def render_stage(canvas, stage_num):
     global window
     global photo
     global stage
+    global stage_width
+    global tile_types
+    global stage_tile_info
 
     stage_data = []
     #print("loading bank 0x%X address 0x%X" %(stages[stage_num]['bank'], stages[stage_num]['offset']))
@@ -422,6 +430,49 @@ def render_stage(canvas, stage_num):
             if tile_types[stage_tile_info[i]] in completely_solid_types:
                 overlay_draw.rectangle([x, y, x + 32, y + 32], (255, 0, 0, 200))
 
+            if tile_types[stage_tile_info[i]] == 0x70:
+                overlay_draw.line([(x, y+32), (x+16, y+16), (x+32, y+16)], fill=(0, 255, 0, 200), width=4)
+            if tile_types[stage_tile_info[i]] == 0x71:
+                overlay_draw.line([(x+32, y), (x+16, y+16), (x+16, y+32)], fill=(0, 255, 0, 200), width=4)
+            if tile_types[stage_tile_info[i]] == 0x72:
+                overlay_draw.line([(x, y+16), (x+16, y+16), (x+32, y+32)], fill=(0, 255, 0, 200), width=4)
+            if tile_types[stage_tile_info[i]] == 0x73:
+                overlay_draw.line([(x, y), (x+16, y+16), (x+16, y+32)], fill=(0, 255, 0, 200), width=4)
+            if tile_types[stage_tile_info[i]] == 0x74:
+                overlay_draw.line([(x+16, y), (x+16, y+16), (x+32, y+32)], fill=(0, 255, 0, 200), width=4)
+            if tile_types[stage_tile_info[i]] == 0x75:
+                overlay_draw.line([(x, y), (x+16, y+16), (x+32, y+16)], fill=(0, 255, 0, 200), width=4)
+            if tile_types[stage_tile_info[i]] == 0x76:
+                overlay_draw.line([(x, y+16), (x+16, y+16), (x+32, y)], fill=(0, 255, 0, 200), width=4)
+            if tile_types[stage_tile_info[i]] == 0x77:
+                overlay_draw.line([(x+16, y), (x+16, y+16), (x, y+32)], fill=(0, 255, 0, 200), width=4)
+            if tile_types[stage_tile_info[i]] == 0x78:
+                overlay_draw.line([(x, y+16), (x+32, y+16)], fill=(0, 255, 0, 200), width=4)
+            if tile_types[stage_tile_info[i]] == 0x79:
+                overlay_draw.line([(x+16, y), (x+16, y+32)], fill=(0, 255, 0, 200), width=4)
+            if tile_types[stage_tile_info[i]] == 0x7A:
+                overlay_draw.line([(x, y), (x+32, y+32)], fill=(0, 255, 0, 200), width=4)
+            if tile_types[stage_tile_info[i]] == 0x7B:
+                overlay_draw.line([(x, y+32), (x+32, y)], fill=(0, 255, 0, 200), width=4)
+
+            # if tile_types[stage_tile_info[i]] == 0x74 or tile_types[stage_tile_info[i]] == 0x72:
+            #     overlay_draw.polygon([(x+18, y+30), (x+30, y+30), (x+30, y+18)], fill=(0, 255, 0, 200))
+            # if tile_types[stage_tile_info[i]] == 0x75:
+            #     overlay_draw.polygon([(x+18, y+8), (x+18, y+24), (x+30, y+16)], fill=(0, 255, 0, 200))
+            # if tile_types[stage_tile_info[i]] == 0x76:
+            #     overlay_draw.polygon([(x+18, y+2), (x+30, y+2), (x+30, y+14)], fill=(0, 255, 0, 200))
+            # if tile_types[stage_tile_info[i]] == 0x77:
+            #     overlay_draw.polygon([(x + 8, y + 14), (x + 24, y + 14), (x + 16, y + 5)], fill=(0, 255, 0, 200))
+            # if tile_types[stage_tile_info[i]] == 0x78:
+            #     overlay_draw.polygon([(x+5, y+14), (x+5, y+18), (x+27, y+18), (x+27, y+14)], fill=(0, 255, 0, 200))
+            # if tile_types[stage_tile_info[i]] == 0x79:
+            #     overlay_draw.polygon([(x+14, y+5), (x+18, y+5), (x+18, y+27), (x+14, y+27)], fill=(0, 255, 0, 200))
+            # if tile_types[stage_tile_info[i]] == 0x7A:
+            #     overlay_draw.polygon([(x+2, y+4), (x+4, y+2), (x+30, y+28), (x+28, y+30)], fill=(0, 255, 0, 200))
+            # if tile_types[stage_tile_info[i]] == 0x7b:
+            #     overlay_draw.polygon([(x+30, y+4), (x+28, y+2), (x+2, y+28), (x+4, y+30)], fill=(0, 255, 0, 200))
+            overlay_draw.rectangle([x, y, x + 32, y + 32], outline=(255,255,255,100))
+
     if show_overlay.get() == 1:
         stage = Image.alpha_composite(stage, overlay)
     canvas.config(scrollregion=(0, 0, stage_width*16*2, stage_height*16*2))
@@ -442,6 +493,8 @@ tkvar.set(stage_num_list['0'])
 stage_dropdown = OptionMenu(window, tkvar, *stage_num_list)
 show_overlay = IntVar()
 overlay_checkbox = Checkbutton(window, text="Show solids", variable=show_overlay)
+info_var = StringVar(window)
+info_label = Label(window, textvariable=info_var)
 
 def change_stage_dropdown(*args):
     global window
@@ -458,12 +511,30 @@ def change_stage_dropdown(*args):
     xscrollbar.config(command=stage_canvas.xview)
     yscrollbar.config(command=stage_canvas.yview)
 
+def update_info_label(event):
+    global stage_width
+    global tile_types
+    global stage_tile_info
+    global stage_canvas
+
+    canvas = event.widget
+    x = (int)(canvas.canvasx(event.x) / 32)
+    y = (int)(canvas.canvasy(event.y) / 32)
+    index = stage_width * y + x
+    if len(stage_tile_info) > index:
+        type = tile_types[stage_tile_info[index]]
+        info_var.set(f'Tile type: 0x{format(type, "02x")}')
+    else:
+        info_var.set(f'Out of range: {index}')
+
 tkvar.trace('w', change_stage_dropdown)
 show_overlay.trace('w', change_stage_dropdown)
 
 render_stage(stage_canvas, stage_num_list[tkvar.get()])
 stage_dropdown.place(x=5, y=5)
-overlay_checkbox.place(x = 60, y = 8)
+overlay_checkbox.place(x=60, y=8)
+info_label.place(x=160, y=10)
+stage_canvas.bind('<Motion>', update_info_label)
 
 
 ti = ImageTk.PhotoImage(stage)
