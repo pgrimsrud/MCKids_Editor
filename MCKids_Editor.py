@@ -177,15 +177,31 @@ def rgba_to_rgb_palette(rgbaPalette):
         palette.append(rgbaPalette[i][2])
     return palette
 
+class Editor:
+
+    def __init__(self):
+        self.levels = [None] * 93 # hard coded to the number of levels for now
+        self.tile_sets = [None] * 44 # Number needs to be double checked
+        self.nes_characters = [None] * 256 # This needs to be way higher and banked guess?
+
+    def get_level(self, id):
+        if self.levels[id] == None:
+            self.load_level(id)
+        return self.levels[id]
+
+    def load_level(self, id):
+        pass
+
 class LevelData:
     def __init__(self):
         self.tile_map = []
         self.tile_sets = [None,None,None,None]
+        self.sprites = []
 
     def get_tile_at(self, index):
         tile_index = self.tile_map[index]
-        tile_set = (int)(tile_index / 64)
-        return self.tile_sets[tile_set].tiles[tile_index % 64]
+        tile_set = tile_index >> 6
+        return self.tile_sets[tile_set].tiles[tile_index & 0x3F]
 
     def set_tile_map(self, map):
         self.tile_map = map
@@ -439,9 +455,26 @@ def render_stage(canvas, stage_num):
 
         if show_overlay.get() == 1:
             tile_type = level.get_tile_at(i).tile_type
-            #if tile_type in completely_solid_types:
+            solid_color = (255, 0, 0, 200)
             if tile_type in completely_solid_types:
-                overlay_draw.rectangle([x, y, x + 32, y + 32], (255, 0, 0, 200))
+                overlay_draw.rectangle([x, y, x + 32, y + 32], solid_color)
+            if tile_type == 0x02 or tile_type == 0x18 or tile_type == 0x21:
+                overlay_draw.polygon([(x, y+32), (x+32, y), (x+32, y+32)], solid_color)
+            if tile_type == 0x03 or tile_type == 0x17 or tile_type == 0x22:
+                overlay_draw.polygon([(x, y), (x, y+32), (x+32, y+32)], solid_color)
+            if tile_type == 0x04 or tile_type == 0x16 or tile_type == 0x23:
+                overlay_draw.polygon([(x, y), (x+32, y), (x+32, y+32)], solid_color)
+            if tile_type == 0x05 or tile_type == 0x15 or tile_type == 0x24:
+                overlay_draw.polygon([(x, y), (x+32, y), (x, y+32)], solid_color)
+
+            if tile_type == 0x09:
+                overlay_draw.polygon([(x, y+32), (x+32, y+32), (x+32, y+16)], solid_color)
+            if tile_type == 0x0A:
+                overlay_draw.polygon([(x, y+16), (x+32, y), (x+32, y+32), (x, y+32)], solid_color)
+            if tile_type == 0x0B:
+                overlay_draw.polygon([(x, y), (x + 32, y+16), (x+32, y + 32), (x, y+32)], solid_color)
+            if tile_type == 0x0C:
+                overlay_draw.polygon([(x, y+16), (x+32, y+32), (x, y+32)], solid_color)
 
             if tile_type == 0x70:
                 overlay_draw.line([(x, y+32), (x+16, y+16), (x+32, y+16)], fill=(0, 255, 0, 200), width=4)
@@ -477,7 +510,7 @@ def render_stage(canvas, stage_num):
         stage = Image.alpha_composite(stage, overlay)
     canvas.config(scrollregion=(0, 0, stage_width*16*2, stage_height*16*2))
 
-completely_solid_types = [0x08, 0x01, 0x1B, 0x25]
+completely_solid_types = [0x08, 0x01, 0x1B, 0x20, 0x25]
 somewhat_solid_types = []
 
 #something = decompress(bank[9][0x193E:],bank[9][0x193D] >> 4,bank[9][0x193D] & 0xF)
@@ -522,7 +555,8 @@ def update_info_label(event):
     index = stage_width * y + x
     if len(stage_tile_info) > index:
         type = level.get_tile_at(index).tile_type
-        info_var.set(f'Tile type: 0x{format(type, "02x")}')
+        tile_set_index = level.tile_map[index]
+        info_var.set(f'Tile type: 0x{format(type, "02x")}, Tile set index: 0x{format(tile_set_index, "02x")}, Data index: 0x{format(index, "04x")}')
     else:
         info_var.set(f'Out of range: {index}')
 

@@ -92,9 +92,8 @@ def decompress(data, offset_size, length_size):
 def compress(data, offset_size, length_size):
     ptr = 0
     buffer = BitBuffer([])
-    buffer.clear()
-    max_offset = (1 << offset_size) - 1
-    max_length = (1 << length_size) - 1
+    max_offset = (1 << offset_size)
+    max_length = (1 << length_size) + 3
     while ptr < len(data):
         offset, length = find_previous_occurance(data, ptr, max_offset, max_length)
         if offset > 0:

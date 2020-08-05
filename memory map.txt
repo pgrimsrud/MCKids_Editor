@@ -72,6 +72,7 @@ Tile types:
 0x1D = Burning bridge
 0x1E = Breakable snow
 0x1F = Falling bridge
+0x20 = Snow solid
 0x21 = Snow slope up right
 0x22 = Snow slope up left
 0x25 = Snow ground
@@ -80,7 +81,7 @@ Tile types:
 0x29 = Lava floater
 0x2A = Boss block
 0x2B = Spikes
-0x2C = Lava
+0x2C = Lava??
 0x2D = Diggable sand
 0x2E = Bone, left side
 0x2F = Bone, right side
@@ -118,3 +119,24 @@ Tile types:
 0x79 = Path: Vertical
 0x7A = Path: Diagonal down right
 0x7B = Path: Diagonal down left
+
+
+Map screen tile types:
+0x01 = Path: Vertical
+0x02 = Path: right + down
+0x03 = Path: left + down
+0x04 = Path: up + right
+0x05 = Path: up + left
+0x06 = Path: left + right + down
+0x07 = Path: up + left + right
+0x08 = Path: up + right + down
+0x09 = Path: up + left + down
+0x0A = Path: every way
+0x0B = Path: Horizontal
+0x0C = Path: Dead end left
+0x11 = Level on dead end up
+0x15 = Level on up + left
+0x1B = Level on horizontal road
+0x1D = Level + dead end right
+
+
