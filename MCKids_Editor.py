@@ -15,6 +15,7 @@ chr_rom = rom[0x20000:]
 # the requested bank is loaded at 0xA000
 # the last two banks are always statically loaded at 0xC000 and 0xE000
 bank_base = 0xA000
+chr_bank_base = 0x8000
 bank = []
 chr_bank = []
 for i in range(0,16):
@@ -149,11 +150,17 @@ def pattern_map(pattern):
     return pixels
 
 game_characters = []
+sprite_characters = []
 
 def load_game_characters(chr_data):
     game_characters.clear()
     for i in range(0,256):
         game_characters.append(chr_to_indexed_image(chr_data, i))
+
+def load_sprite_characters(chr_data):
+    sprite_characters.clear()
+    for i in range(0,256):
+        sprite_characters.append(chr_to_indexed_image(chr_data, i))
 
 def chr_to_indexed_image(chr_data, num):
     pixels = pattern_map(chr_data[num * 0x10: num * 0x10 + 0x10])
@@ -168,6 +175,10 @@ def chr_to_indexed_image(chr_data, num):
 def draw_character(canvas, x, y, palette, num):
     game_characters[num].putpalette(palette)
     canvas.paste(game_characters[num], (x, y))
+
+def draw_sprite(canvas, x, y, palette, num):
+    sprite_characters[num].putpalette(palette)
+    canvas.paste(sprite_characters[num], (x, y))
 
 def rgba_to_rgb_palette(rgbaPalette):
     palette = []
@@ -417,6 +428,19 @@ def render_stage(canvas, stage_num):
     chr_data += rom[0x20000 + (0x400 * chr_map[stage_data[4]]):0x20000 + (0x400 * chr_map[stage_data[4]]) + 0x400]
     chr_data += rom[0x20000 + (0x400 * chr_map[stage_data[5]]):0x20000 + (0x400 * chr_map[stage_data[5]]) + 0x400]
 
+    # The sprite chr banks IDs are put into 0x31A and 0x31B
+    # 0x31A was loaded from an array at bank 0 offset 0xF31.
+    # the index to this array came from an array at bank 0xE offset 0xF9E
+    # the index to this array came from 0x414 + 0xCFA6[0x3FA]
+    # 0x3FA came from 0x3F7. 0x3F7 is set to 3, but only because 0x4A0 was positive
+    # 0x414 is 0 for Mack and 1 for Mick
+    # 0x31B was loaded from an array at bank 0 offset 0xF31.
+    # The index to this array came from an array at bank 1 offset 0x2B1
+    # The index to that was the stage num
+    mick_mack = 1
+    sprite_chr_data  = rom[0x20000 + (0x400 * bank[0][0xF31 + bank[0xE][0xF9E + bank[0xE][0xFA6 + 3] + mick_mack]]):0x20000 + (0x400 * bank[0][0xF31 + bank[0xE][0xF9E + bank[0xE][0xFA6 + 3] + mick_mack]]) + 0x800]
+    sprite_chr_data += rom[0x20000 + (0x400 * bank[0][0xF31 + bank[1][0x2B1 + stage_num]]):0x20000 + (0x400 * bank[0][0xF31 + bank[1][0x2B1 + stage_num]]) + 0x800]
+
     stage_decompressed = decompress(stage_data[7:], stage_data[6] >> 4, stage_data[6] & 0xF)
 
     spawn_count = stage_decompressed[0]
@@ -426,6 +450,11 @@ def render_stage(canvas, stage_num):
     spawn_y = []
     spawn_id = []
     spawn_property = []
+    spawn_pattern_flag = []
+    spawn_width = []
+    spawn_height = []
+    spawn_patterns_bytes = []
+    spawn_patterns = []
 
     for i in range(0,spawn_count):
         spawn_x.append(stage_spawn_info[i])
@@ -433,6 +462,148 @@ def render_stage(canvas, stage_num):
         spawn_id.append(stage_spawn_info[2*spawn_count+i])
         spawn_property.append(stage_spawn_info[3*spawn_count+i])
     stage_tile_info = stage_spawn_info[4*spawn_count:]
+    #for i in spawn_id:
+    #    print("ID: 0x%X" % i)
+
+    # spawn ID is used to index an array at bank 3 offset 0x11D3
+    # that value is ANDed with 0x3C and ORed with 0x1 and stored to an array at 0x4C0
+    # spawn ID is used to index an array at bank 3 offset 0x1253
+    # that value is ANDed with 0xC and stored to an array at 0x594
+    # spawn ID is used to index an array at bank 3 offset 0x11D3
+    # that value is ANDed with 0x2 and 0x55B is only incremented if the result is 0
+    # spawn ID is used to index an array at bank 3 offset 0x1153
+    # that value is pushed to the stack
+    # spawn ID is used to index an array at bank 3 offset 0x10D3
+    # that value is stored to 0x746
+    # the values from the arrays at 0x1153 and 0x10D3 are used as the A and Y arguments
+    # to the routine at 0xD18E
+    # the value from bank 3 0x10D3 index spawn ID gets stored to an array at 0x614
+    # the value from bank 3 0x1153 index spawn ID gets stored to an array at 0x624
+    # 0 gets stored to the arrays at 0x634 and 0x654
+    # 1 gets stored to the array at 0x664 but it gets decremented if the 0x10D3 value wasn't 0
+    # the value from 0x10D3 is used to load 0x22-0x25 by indexing arrays at bank 0 0xF59, 0xF6D, 0xF81, 0xF95
+    # (0x22) and (0x24) are used as a pointers to an arrays. The arrays are indexed by the 0x1153 value
+    # and used to put a new pointer at 0x22-0x23
+    # the new pointer at (0x22) is used to access an array indexed by the value from the array at 0x634
+    # it is pushed to the stack twice and stored in the array at 0x664
+    # it is pulled off the stack once ANDed with 0x40 and stored to 0x27
+    # a value from an array at 0x5D4 is ANDed with 0xBF, ORed with that value we just put into 0x27 and stored back to the array at 0x5D4
+    # it is pulled off the stack again ANDed with 0x80 and stored to 0x27
+    # a value from an array at 0x5E4 is ANDed with 0x7F, ORed with that value we just put into 0x27 and stored back to the array at 0x5E4
+    # the index that we originally got from 0x634 is incremented
+    # we pull a new value from the new array at (0x22) and store it to the array at 0x5A4
+    # a value from the array at 0x614 is stored to the array at 0x584
+    # the index is incremented again and stored back to the array at 0x634
+    # a value is pulled from the array at bank 3 offset 0x13D3 indexed by the spawn ID and stored to 0x301
+    # if it was not zero a value is pulled from the array at bank 3 offset 0x1353 indexed by the spawn ID and stored to 0x300
+    # a value is loaded from the array at bank 3 offset 0x1653 indexed by the spawn ID and that chr bank is loaded
+    # the array index (enemy slot?) is pushed to the stack along with 0xE8 and 0xDF are pushed to the stack
+    # the function we just loaded into 0x300 as a pointer is called. it does nothing in this case
+    # values from 0x57, 0x55, 0x58, and 0x56 are loaded into the arrays at 0x470, 0x450, 0x460, and 0x440
+    #
+    # 0x201 came from (0x1A) which is bank 0 offset 0x14E6 index Y
+    # Y was 5, looked like index 5 of a structure of some kind
+    # 0x1A was loaded from (0x1A) which was bank 0 offset 0x141F indexed by the value from the array at 0x5A4 index 0
+    # 0x5A4 came from (0x22) index (0x624 index X) + 2
+    # 0x624 was loaded with 0
+    # This new 0x22 was build from an old (0x22) as the lower and (0x24) as the upper, both indexed by 0x624 index X
+    # The old 0x22-0x25 came from bank 0 offsets 0xF59, 0xF6D, 0xF81, 0xF95 indexed by Y
+    # Y came from 0x614 index X. X was loaded with 0
+    # 0x1A was loaded from bank 0 offset 0xEE1 index Y and 0x1B was loaded from bank 0 offset 0xEF5 index Y
+    # Y came from the array at 0x584 offset 0 which came from 0x614 offset 0
+    # 0x614 came from bank 0xE offset 0xFA2 index Y
+    # Y came from bank 0xE offset 0xFA6 index Y
+    # Y came from 0x3FA which came from 0x3F7 which was set to 0
+    #
+    # new 1A is A191
+    # old 1A is A189 any Y came from 584
+    # 584 came from 614
+    for i in range(0,spawn_count):
+        if spawn_id[i] >= 0x80 and spawn_id[i] <= 0x97:
+            spawn_id[i] = 0x50
+        val_614 = bank[3][0x10D3 + spawn_id[i]]
+        if spawn_id[i] == 0x4A or spawn_id[i] == 0x4B:
+            val_614 = bank[3][0x10D3 + 0x1F]
+        elif val_614 == 0:
+            val_614 = bank[3][0x10D3 + 0xA]
+        old_22 = (bank[0][0xF6D + val_614] << 8) + bank[0][0xF59 + val_614]
+        old_24 = (bank[0][0xF95 + val_614] << 8) + bank[0][0xF81 + val_614]
+        val_624 = bank[3][0x1153 + spawn_id[i]]
+        if spawn_id[i] == 0x4A or spawn_id[i] == 0x4B:
+            val_624 = bank[3][0x1153 + 0x1F]
+        elif spawn_id[i] == 0x29 or spawn_id[i] == 0x28:
+            val_624 = bank[3][0x1153 + 0xA]
+        elif spawn_id[i] == 0x6C:
+            val_624 = bank[3][0x1153 + 0x6F]
+        elif spawn_id[i] == 0x2A:
+            val_624 = 1
+        #print("0x%X" % spawn_id[i])
+        #print("0x%X" % old_22)
+        #print("0x%X" % old_24)
+        #print("0x%X" % val_624)
+        new_22 = (bank[0][old_24 - bank_base + val_624] << 8) + bank[0][old_22 - bank_base + val_624]
+        #print("0x%X" % new_22)
+        val_5A4 = bank[0][new_22 - bank_base + 1]
+        val_584 = val_614
+        val_F45 = bank[0][0xF45 + val_584]
+        old_1A = (bank[0][0xEF5 + val_584] << 8) + bank[0][0xEE1 + val_584]
+        old_1C = (bank[0][0xF1D + val_584] << 8) + bank[0][0xF09 + val_584]
+        new_1A = (bank[0][old_1C - bank_base + val_5A4] << 8) + bank[0][old_1A - bank_base + val_5A4]
+        #print("0x%X" % val_624)
+        #print("0x%X" % old_22)
+        #print("0x%X" % old_24)
+        #print("0x%X" % new_22)
+        #print("0x%X" % val_5A4)
+        #print("0x%X" % val_584)
+        #print("0x%X" % old_1A)
+        #print("0x%X" % old_1C)
+        #print("0x%X" % new_1A)
+        spawn_pattern_flag.append(bank[0][new_1A - bank_base])
+        if spawn_id[i] == 0x3A:
+            spawn_width.append(2)
+            spawn_height.append(3)
+        elif spawn_pattern_flag[i] == 0x80:
+            spawn_width.append(2)
+            spawn_height.append(4)
+        elif spawn_pattern_flag[i] == 0x82:
+            spawn_width.append(2)
+            spawn_height.append(4)
+        else:
+            spawn_width.append(bank[0][new_1A - bank_base + 3])
+            spawn_height.append(bank[0][new_1A - bank_base + 4])
+        spawn_patterns_bytes.append(bank[0][new_1A - bank_base:new_1A - bank_base + 5 + (spawn_width[i] * spawn_height[i]) + 200])
+        spawn_patterns.append([])
+        #print("len 0x%X" % len(spawn_patterns_bytes[i]))
+        #print("ID 0x%X" % spawn_id[i])
+        #print("F45 0x%X" % val_F45)
+        if spawn_id[i] == 0x3A:
+            spawn_patterns[i].append(spawn_patterns_bytes[i][0x03] | val_F45)
+            spawn_patterns[i].append(spawn_patterns_bytes[i][0x06] | val_F45)
+            spawn_patterns[i].append(spawn_patterns_bytes[i][0x09] | val_F45)
+            spawn_patterns[i].append(spawn_patterns_bytes[i][0x0C] | val_F45)
+            spawn_patterns[i].append(spawn_patterns_bytes[i][0x11] | val_F45)
+            spawn_patterns[i].append(spawn_patterns_bytes[i][0x14] | val_F45)
+        elif spawn_pattern_flag[i] == 0x80:
+            for j in range(0,4):
+                spawn_patterns[i].insert(0, spawn_patterns_bytes[i][j*6 + 6] | val_F45)
+                spawn_patterns[i].insert(0, spawn_patterns_bytes[i][j*6 + 3] | val_F45)
+        elif spawn_pattern_flag[i] == 0x82:
+            spawn_patterns[i].append(spawn_patterns_bytes[i][0x25] | val_F45)
+            spawn_patterns[i].append(spawn_patterns_bytes[i][0x28] | val_F45)
+            spawn_patterns[i].append(spawn_patterns_bytes[i][0x5D] | val_F45)
+            spawn_patterns[i].append(spawn_patterns_bytes[i][0x60] | val_F45)
+            spawn_patterns[i].append(spawn_patterns_bytes[i][0x79] | val_F45)
+            spawn_patterns[i].append(spawn_patterns_bytes[i][0x7C] | val_F45)
+            spawn_patterns[i].append(spawn_patterns_bytes[i][0x7F] | val_F45)
+            spawn_patterns[i].append(spawn_patterns_bytes[i][0x82] | val_F45)
+        else:
+            for j in range(5,5 + spawn_width[i] * spawn_height[i]):#len(spawn_patterns_bytes[i])):
+                #print(j)
+                #print(spawn_patterns_bytes[i][j])
+                #print(spawn_patterns[i])
+                spawn_patterns[i].append(spawn_patterns_bytes[i][j] | val_F45)
+        #for j in range(0,len(spawn_patterns[i])):
+        #    print("  0x%X" % spawn_patterns[i][j])
 
     level.set_tile_map(stage_tile_info)
     for i in range(0, 4):
@@ -440,6 +611,7 @@ def render_stage(canvas, stage_num):
         level.tile_sets[i].from_decompressed_bytes(tile_map_raw[i], i)
 
     load_game_characters(chr_data)
+    load_sprite_characters(sprite_chr_data)
 
     # use the decompressed tiles from the stage, the tile map, and the pattern table to create an image of the stage
     stage = Image.new('RGBA', (stage_width*16*2,stage_height*16*2))
@@ -452,6 +624,21 @@ def render_stage(canvas, stage_num):
         y = int(i / stage_width) * 16 * 2
         p = rgba_to_rgb_palette(palette[attribute_lookup[tile_palette_map[stage_tile_info[i]]]])
         level.get_tile_at(i).draw(stage, x, y, p)
+
+    for i in range(0,spawn_count):#min(2,spawn_count)):
+        # use the decompressed tiles from the stage, the tile map, and the pattern table to create an image of the stage
+        if spawn_id[i] == 0x59: # new chr bank specially loaded for final boss
+            sprite_chr_data  = []
+            sprite_chr_data  = rom[0x20000 + (0x400 * bank[0][0xF31 + bank[0xE][0xF9E + bank[0xE][0xFA6 + 3] + mick_mack]]):0x20000 + (0x400 * bank[0][0xF31 + bank[0xE][0xF9E + bank[0xE][0xFA6 + 3] + mick_mack]]) + 0x800]
+            sprite_chr_data += rom[0x20000 + (0x400 * 0x1C):0x20000 + (0x400 * 0x1C) + 0x800]
+            load_sprite_characters(sprite_chr_data)
+        sprite_img = Image.new('RGB', (16*16*2,16*16*2))
+        for j in range(spawn_width[i] * spawn_height[i]):
+            x = spawn_x[i] * 16 * 2 + (j % spawn_width[i]) * 8 * 2
+            y = spawn_y[i] * 16 * 2 + int(j / spawn_width[i]) * 8 * 2
+            p = [0, 0, 0, 100, 100, 100, 200, 200, 200, 255, 255, 255]
+            draw_sprite(stage, x, y, p, spawn_patterns[i][j])
+
 
         if show_overlay.get() == 1:
             tile_type = level.get_tile_at(i).tile_type
