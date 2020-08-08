@@ -157,10 +157,12 @@ def load_game_characters(chr_data):
     for i in range(0,256):
         game_characters.append(chr_to_indexed_image(chr_data, i))
 
-def load_sprite_characters(chr_data):
+def load_sprite_characters(chr_data, palette):
     sprite_characters.clear()
-    for i in range(0,256):
-        sprite_characters.append(chr_to_indexed_image(chr_data, i))
+    for i in range(0,4):
+        sprite_characters.append([])
+        for j in range(0,256):
+            sprite_characters[i].append(chr_to_sprite_image(chr_data, j, palette[i]))
 
 def chr_to_indexed_image(chr_data, num):
     pixels = pattern_map(chr_data[num * 0x10: num * 0x10 + 0x10])
@@ -171,14 +173,22 @@ def chr_to_indexed_image(chr_data, num):
     img = img.resize((16, 16))
     return img
 
+def chr_to_sprite_image(chr_data, num, palette):
+    pixels = pattern_map(chr_data[num * 0x10: num * 0x10 + 0x10])
+    img = Image.new('RGBA', (8, 8))
+    for x in range(8):
+        for y in range(8):
+            img.putpixel((x, y), palette[pixels[x + y * 8]])
+    img = img.resize((16, 16))
+    return img
+
 
 def draw_character(canvas, x, y, palette, num):
     game_characters[num].putpalette(palette)
     canvas.paste(game_characters[num], (x, y))
 
 def draw_sprite(canvas, x, y, palette, num):
-    sprite_characters[num].putpalette(palette)
-    canvas.paste(sprite_characters[num], (x, y))
+    canvas.paste(sprite_characters[palette][num], (x, y), mask=sprite_characters[palette][num])
 
 def rgba_to_rgb_palette(rgbaPalette):
     palette = []
@@ -300,6 +310,7 @@ def render_stage(canvas, stage_num):
     #        attribute_lookup[i] = attribute_count
     #        attribute_count -= 1
 
+
     # the code has a special case to replace the palette indexes for stage index 29
     if stage_num == 29:
         attribute_lookup = [2, 2, 2, 2, 2, 2, 2, 2]
@@ -345,6 +356,21 @@ def render_stage(canvas, stage_num):
             palette[i].append(colors[bank[1][0x20*j + ((palette_index[i] & 0xF) + ((palette_index[i] & 0xF0) >> 1))
                               + ((palette_flags[stage_num] & 1) << 3)
                               + (((palette_flags[stage_num] & 4) >> 2) * 0x18)]])
+
+    chr_palette_index = [0, 1]
+    chr_palette_index.append(bank[1][0x30E + stage_num])
+    chr_palette_index.append(bank[1][0x36B + stage_num])
+    chr_palette = []
+    for i in range(0,4):
+        # the first (or 0) color for each group of 4 chr colors is always the alpha no matter what the value is
+        chr_palette.append([(0, 0, 0, 0)])
+    #print(palette)
+    for i in range(0,4):
+        for j in range(0,3):
+            chr_palette[i].append(colors[bank[1][0x60 + 0xF*j + chr_palette_index[i]]])
+                                                    #+ ((palette_index[i] & 0xF0) >> 1))
+                                                    #+ ((palette_flags[stage_num] & 1) << 3)
+                                                    #+ (((palette_flags[stage_num] & 4) >> 2) * 0x18)]])
 
 
     # here we're checking for the stage num, but in the game code it calls special
@@ -455,6 +481,7 @@ def render_stage(canvas, stage_num):
     spawn_height = []
     spawn_patterns_bytes = []
     spawn_patterns = []
+    spawn_color = []
 
     for i in range(0,spawn_count):
         spawn_x.append(stage_spawn_info[i])
@@ -572,6 +599,7 @@ def render_stage(canvas, stage_num):
             spawn_width.append(bank[0][new_1A - bank_base + 3])
             spawn_height.append(bank[0][new_1A - bank_base + 4])
         spawn_patterns_bytes.append(bank[0][new_1A - bank_base:new_1A - bank_base + 5 + (spawn_width[i] * spawn_height[i]) + 200])
+        spawn_color.append(spawn_patterns_bytes[i][0] & 0x3)
         spawn_patterns.append([])
         #print("len 0x%X" % len(spawn_patterns_bytes[i]))
         #print("ID 0x%X" % spawn_id[i])
@@ -611,7 +639,7 @@ def render_stage(canvas, stage_num):
         level.tile_sets[i].from_decompressed_bytes(tile_map_raw[i], i)
 
     load_game_characters(chr_data)
-    load_sprite_characters(sprite_chr_data)
+    load_sprite_characters(sprite_chr_data, chr_palette)
 
     # use the decompressed tiles from the stage, the tile map, and the pattern table to create an image of the stage
     stage = Image.new('RGBA', (stage_width*16*2,stage_height*16*2))
@@ -624,21 +652,6 @@ def render_stage(canvas, stage_num):
         y = int(i / stage_width) * 16 * 2
         p = rgba_to_rgb_palette(palette[attribute_lookup[tile_palette_map[stage_tile_info[i]]]])
         level.get_tile_at(i).draw(stage, x, y, p)
-
-    for i in range(0,spawn_count):#min(2,spawn_count)):
-        # use the decompressed tiles from the stage, the tile map, and the pattern table to create an image of the stage
-        if spawn_id[i] == 0x59: # new chr bank specially loaded for final boss
-            sprite_chr_data  = []
-            sprite_chr_data  = rom[0x20000 + (0x400 * bank[0][0xF31 + bank[0xE][0xF9E + bank[0xE][0xFA6 + 3] + mick_mack]]):0x20000 + (0x400 * bank[0][0xF31 + bank[0xE][0xF9E + bank[0xE][0xFA6 + 3] + mick_mack]]) + 0x800]
-            sprite_chr_data += rom[0x20000 + (0x400 * 0x1C):0x20000 + (0x400 * 0x1C) + 0x800]
-            load_sprite_characters(sprite_chr_data)
-        sprite_img = Image.new('RGB', (16*16*2,16*16*2))
-        for j in range(spawn_width[i] * spawn_height[i]):
-            x = spawn_x[i] * 16 * 2 + (j % spawn_width[i]) * 8 * 2
-            y = spawn_y[i] * 16 * 2 + int(j / spawn_width[i]) * 8 * 2
-            p = [0, 0, 0, 100, 100, 100, 200, 200, 200, 255, 255, 255]
-            draw_sprite(stage, x, y, p, spawn_patterns[i][j])
-
 
         if show_overlay.get() == 1:
             tile_type = level.get_tile_at(i).tile_type
@@ -692,6 +705,20 @@ def render_stage(canvas, stage_num):
                 overlay_draw.line([(x+16, y), (x+16, y+32)], fill=(0, 255, 0, 200), width=4)
 
             overlay_draw.rectangle([x, y, x + 32, y + 32], outline=(255,255,255,100))
+
+    for i in range(0,spawn_count):#min(2,spawn_count)):
+        # use the decompressed tiles from the stage, the tile map, and the pattern table to create an image of the stage
+        if spawn_id[i] == 0x59: # new chr bank specially loaded for final boss
+            sprite_chr_data  = []
+            sprite_chr_data  = rom[0x20000 + (0x400 * bank[0][0xF31 + bank[0xE][0xF9E + bank[0xE][0xFA6 + 3] + mick_mack]]):0x20000 + (0x400 * bank[0][0xF31 + bank[0xE][0xF9E + bank[0xE][0xFA6 + 3] + mick_mack]]) + 0x800]
+            sprite_chr_data += rom[0x20000 + (0x400 * 0x1C):0x20000 + (0x400 * 0x1C) + 0x800]
+            load_sprite_characters(sprite_chr_data, chr_palette)
+        sprite_img = Image.new('RGB', (16*16*2,16*16*2))
+        for j in range(spawn_width[i] * spawn_height[i]):
+            x = spawn_x[i] * 16 * 2 + (j % spawn_width[i]) * 8 * 2
+            y = spawn_y[i] * 16 * 2 + int(j / spawn_width[i]) * 8 * 2
+            p = spawn_color[i]
+            draw_sprite(stage, x, y, p, spawn_patterns[i][j])
 
     if show_overlay.get() == 1:
         stage = Image.alpha_composite(stage, overlay)
