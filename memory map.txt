@@ -140,3 +140,29 @@ Map screen tile types:
 0x1D = Level + dead end right
 
 
+Sprite IDs:
+0x01 = Finish line M arch
+0x20 = Gopher
+0x22 = Jumping bird
+0x2B = Spider (top)
+0x2D = Flower enemy
+0x2E = Hovering leaf
+0x3A = Frozen gopher
+0x48 = Flying pac-man
+0x49 = Snail
+0x4A = Fire spitter right
+0x4B = Fire spitter left
+0x4C = Walking rock
+0x50 = Zipper 1
+0x51 = Zipper 2
+0x5A = Moon tongue
+0x5C = Small cave man
+0x5D = Big cave man
+0x60 = fill-in-block
+0x61 = fill-in-square
+0x73 = Path following treadmill
+0x74 = Boat
+0x76 = Path following platform
+0x77 = Path following platform (Falling only?)
+0x79 = Big spring (left side)
+0x7A = Upside down big spring (left side)

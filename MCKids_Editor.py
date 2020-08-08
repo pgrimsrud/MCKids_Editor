@@ -1,6 +1,11 @@
 from tkinter import *
 from PIL import Image, ImageDraw, ImageTk
 from compression import compress, decompress
+from spawnpoint import SpawnPoint
+from level import Level
+from rom import RomFile
+from colors import colors
+from tileset import TileSet
 
 file_name = "mckids.nes"
 
@@ -36,90 +41,6 @@ for i in range(0,0x5D):
 # stage ID comes from an array at bank 1 offset 0x77F. The index to that array
 # comes from 0x6DE which is updated when walking on the map
 
-# palette information is stored in arrays in bank 1 at 0x0000, 0x0020, and 0x0040
-# indexes are pulled from 0x69A-0x69D
-# looks like that was copied from 0x6700 territory which was unpacked from somewhere in bank 9
-# 0x69A gets 4 from bank 9 0xB93D offset 1
-# 0x69B gets 2 from bank 9 0xB061 offset 2
-# 0x69C gets 1 from bank 9 0xB061 offset 1
-# 0x69D gets 0 from bank 9 0xB061 offset 0
-    # the 9/B061 came from arrays at 0x8D, 0xB9, 0xE5 in bank 1. the offset came from 0x77D
-# I think it fills slots from back to front and ends if it finds a duplicate?
-# table of base background colors at bank 1 0x1F7 indexed by stage ID
-
-colors = [
-          ( 84, 84, 84,255), #       DARK_GRAY          0x00
-          (  0, 30,116,255), #       DARK_GRAY_BLUE     0x01
-          (  8, 16,144,255), #       DARK_BLUE          0x02
-          ( 48,  0,136,255), #       DARK_PURPLE        0x03
-          ( 68,  0,100,255), #       DARK_PINK          0x04
-          ( 92,  0, 48,255), #       DARK_FUCHSIA       0x05
-          ( 84,  4,  0,255), #       DARK_RED           0x06
-          ( 60, 24,  0,255), #       DARK_ORANGE        0x07
-          ( 32, 42,  0,255), #       DARK_TAN           0x08
-          (  8, 58,  0,255), #       DARK_GREEN         0x09
-          (  0, 64,  0,255), #       DARK_LIME_GREEN    0x0A
-          (  0, 60,  0,255), #       DARK_SEAFOAM_GREEN 0x0B
-          (  0, 50, 60,255), #       DARK_CYAN          0x0C
-          (  0,  0,  0,255), #            BLACK_2       0x0D
-          (  0,  0,  0,255), #            BLACK         0x0E
-          (  0,  0,  0,255), #            BLACK_3       0x0F
-          (152,150,152,255), #            GRAY          0x10
-          (  8, 76,196,255), #            GRAY_BLUE     0x11
-          ( 48, 50,236,255), #            BLUE          0x12
-          ( 92, 30,228,255), #            PURPLE        0x13
-          (136, 20,176,255), #            PINK          0x14
-          (160, 20,100,255), #            FUCHSIA       0x15
-          (152, 34, 32,255), #            RED           0x16
-          (120, 60,  0,255), #            ORANGE        0x17
-          ( 84, 90,  0,255), #            TAN           0x18
-          ( 40,114,  0,255), #            GREEN         0x19
-          (  8,124,  0,255), #            LIME_GREEN    0x1A
-          (  0,118, 40,255), #            SEAFOAM_GREEN 0x1B
-          (  0,102,120,255), #            CYAN          0x1C
-          (  0,  0,  0,255), #            BLACK_4       0x1D
-          (  0,  0,  0,255), #            BLACK_5       0x1E
-          (  0,  0,  0,255), #            BLACK_6       0x1F
-          (255,255,255,255), #      LIGHT_GRAY          0x20
-          ( 76,154,236,255), #      LIGHT_GRAY_BLUE     0x21
-          (120,124,236,255), #      LIGHT_BLUE          0x22
-          (176, 98,236,255), #      LIGHT_PURPLE        0x23
-          (228, 84,236,255), #      LIGHT_PINK          0x24
-          (236, 88,180,255), #      LIGHT_FUCHSIA       0x25
-          (236,106,100,255), #      LIGHT_RED           0x26
-          (212,136, 32,255), #      LIGHT_ORANGE        0x27
-          (160,170,  0,255), #      LIGHT_TAN           0x28
-          (116,196,  0,255), #      LIGHT_GREEN         0x29
-          ( 76,208, 32,255), #      LIGHT_LIME_GREEN    0x2A
-          ( 56,204,108,255), #      LIGHT_SEAFOAM_GREEN 0x2B
-          ( 56,180,204,255), #      LIGHT_CYAN          0x2C
-          ( 60, 60, 60,255), #       DARK_GRAY_2        0x2D
-          (  0,  0,  0,255), #            BLACK_7       0x2E
-          (  0,  0,  0,255), #            BLACK_8       0x2F
-          (255,255,255,255), #            WHITE         0x30
-          (168,204,236,255), # VERY_LIGHT_GRAY_BLUE     0x31
-          (188,188,236,255), # VERY_LIGHT_BLUE          0x32
-          (212,178,236,255), # VERY_LIGHT_PURPLE        0x33
-          (236,174,236,255), # VERY_LIGHT_PINK          0x34
-          (236,174,212,255), # VERY_LIGHT_FUCHSIA       0x35
-          (236,180,176,255), # VERY_LIGHT_RED           0x36
-          (228,196,144,255), # VERY_LIGHT_ORANGE        0x37
-          (204,210,120,255), # VERY_LIGHT_TAN           0x38
-          (180,222,120,255), # VERY_LIGHT_GREEN         0x39
-          (168,226,144,255), # VERY_LIGHT_LIME_GREEN    0x3A
-          (152,226,180,255), # VERY_LIGHT_SEAFOAM_GREEN 0x3B
-          (160,214,228,255), # VERY_LIGHT_CYAN          0x3C
-          (160,162,160,255), #            GRAY_2        0x3D
-          (  0,  0,  0,255), #            BLACK_9       0x3E
-          (  0,  0,  0,255)] #            BLACK_10      0x3F
-
-
-# need to figure out how the game does this
-#palette = [(0,0,0),
-#           (100,100,100),
-#           (200,200,200),
-#           (255,255,255)]
-
 # haven't even started on attribute tables
 
 # the main window
@@ -138,58 +59,6 @@ pi = None
 photo = None
 ti = None
 
-stage_width = 0
-stage_height = 0
-stage_tile_info = []
-
-#this converts the 16 byte pattern table data to an array of color indexes 0-3 for the 8x8 tile
-def pattern_map(pattern):
-    pixels = []
-    for i in range(0,64):
-        pixels.append((((pattern[(i>>3) + 8] >> (7 - (i & 7))) & 1) << 1) + (pattern[i>>3] >> (7 - (i & 7)) & 1))
-    return pixels
-
-game_characters = []
-sprite_characters = []
-
-def load_game_characters(chr_data):
-    game_characters.clear()
-    for i in range(0,256):
-        game_characters.append(chr_to_indexed_image(chr_data, i))
-
-def load_sprite_characters(chr_data, palette):
-    sprite_characters.clear()
-    for i in range(0,4):
-        sprite_characters.append([])
-        for j in range(0,256):
-            sprite_characters[i].append(chr_to_sprite_image(chr_data, j, palette[i]))
-
-def chr_to_indexed_image(chr_data, num):
-    pixels = pattern_map(chr_data[num * 0x10: num * 0x10 + 0x10])
-    img = Image.new('P', (8, 8))
-    for x in range(8):
-        for y in range(8):
-            img.putpixel((x, y), pixels[x + y * 8])
-    img = img.resize((16, 16))
-    return img
-
-def chr_to_sprite_image(chr_data, num, palette):
-    pixels = pattern_map(chr_data[num * 0x10: num * 0x10 + 0x10])
-    img = Image.new('RGBA', (8, 8))
-    for x in range(8):
-        for y in range(8):
-            img.putpixel((x, y), palette[pixels[x + y * 8]])
-    img = img.resize((16, 16))
-    return img
-
-
-def draw_character(canvas, x, y, palette, num):
-    game_characters[num].putpalette(palette)
-    canvas.paste(game_characters[num], (x, y))
-
-def draw_sprite(canvas, x, y, palette, num):
-    canvas.paste(sprite_characters[palette][num], (x, y), mask=sprite_characters[palette][num])
-
 def rgba_to_rgb_palette(rgbaPalette):
     palette = []
     for i in range(len(rgbaPalette)):
@@ -198,71 +67,7 @@ def rgba_to_rgb_palette(rgbaPalette):
         palette.append(rgbaPalette[i][2])
     return palette
 
-class Editor:
-
-    def __init__(self):
-        self.levels = [None] * 93 # hard coded to the number of levels for now
-        self.tile_sets = [None] * 44 # Number needs to be double checked
-        self.nes_characters = [None] * 256 # This needs to be way higher and banked guess?
-
-    def get_level(self, id):
-        if self.levels[id] == None:
-            self.load_level(id)
-        return self.levels[id]
-
-    def load_level(self, id):
-        pass
-
-class LevelData:
-    def __init__(self):
-        self.tile_map = []
-        self.tile_sets = [None,None,None,None]
-        self.sprites = []
-
-    def get_tile_at(self, index):
-        tile_index = self.tile_map[index]
-        tile_set = tile_index >> 6
-        return self.tile_sets[tile_set].tiles[tile_index & 0x3F]
-
-    def set_tile_map(self, map):
-        self.tile_map = map
-
-class TileSet:
-    def __init__(self):
-        self.tiles = []
-
-    def from_decompressed_bytes(self, data, index):
-        self.tiles.clear()
-        tile_set_size = data[4]
-
-        for i in range(0, 64):
-            tile = Tile()
-
-            if tile_set_size > i:
-                for j in range(0, 4):
-                    tile.characters[j] = data[5 + i + (j * tile_set_size)] + 0x40 * index
-                type_pos = 6 + i + (tile_set_size * 5)
-                if len(data) > type_pos:
-                    tile.tile_type = data[type_pos]
-
-            self.tiles.append(tile)
-
-class Tile:
-    def __init__(self):
-        self.characters = [0,0,0,0]
-        self.tile_type = 0
-
-    def draw(self, canvas, x, y, palette):
-        game_characters[self.characters[0]].putpalette(palette)
-        canvas.paste(game_characters[self.characters[0]], (x, y))
-        game_characters[self.characters[1]].putpalette(palette)
-        canvas.paste(game_characters[self.characters[1]], (x+16, y))
-        game_characters[self.characters[2]].putpalette(palette)
-        canvas.paste(game_characters[self.characters[2]], (x, y+16))
-        game_characters[self.characters[3]].putpalette(palette)
-        canvas.paste(game_characters[self.characters[3]], (x+16, y+16))
-
-level = LevelData()
+level = Level()
 
 def render_stage(canvas, stage_num):
     global rom
@@ -468,10 +273,17 @@ def render_stage(canvas, stage_num):
     sprite_chr_data += rom[0x20000 + (0x400 * bank[0][0xF31 + bank[1][0x2B1 + stage_num]]):0x20000 + (0x400 * bank[0][0xF31 + bank[1][0x2B1 + stage_num]]) + 0x800]
 
     stage_decompressed = decompress(stage_data[7:], stage_data[6] >> 4, stage_data[6] & 0xF)
+    level.decompress(stage_data)
 
     spawn_count = stage_decompressed[0]
     stage_spawn_info = stage_decompressed[1:]
 
+    level.spawn_points.clear()
+    for i in range(spawn_count):
+        level.add_spawn_point(SpawnPoint(
+            stage_spawn_info[i], stage_spawn_info[spawn_count + i],
+            stage_spawn_info[spawn_count * 2 + i], stage_spawn_info[spawn_count * 3 + i]
+        ))
     spawn_x = []
     spawn_y = []
     spawn_id = []
@@ -598,6 +410,8 @@ def render_stage(canvas, stage_num):
         else:
             spawn_width.append(bank[0][new_1A - bank_base + 3])
             spawn_height.append(bank[0][new_1A - bank_base + 4])
+
+        # Below here is stuff that goes into the RomFile object
         spawn_patterns_bytes.append(bank[0][new_1A - bank_base:new_1A - bank_base + 5 + (spawn_width[i] * spawn_height[i]) + 200])
         spawn_color.append(spawn_patterns_bytes[i][0] & 0x3)
         spawn_patterns.append([])
@@ -633,24 +447,26 @@ def render_stage(canvas, stage_num):
         #for j in range(0,len(spawn_patterns[i])):
         #    print("  0x%X" % spawn_patterns[i][j])
 
-    level.set_tile_map(stage_tile_info)
     for i in range(0, 4):
-        level.tile_sets[i] = TileSet()
-        level.tile_sets[i].from_decompressed_bytes(tile_map_raw[i], i)
+        RomFile.tile_sets[level.tile_set_indices[i]] = TileSet()
+        RomFile.tile_sets[level.tile_set_indices[i]].from_decompressed_bytes(tile_map_raw[i], i)
 
-    load_game_characters(chr_data)
-    load_sprite_characters(sprite_chr_data, chr_palette)
+    RomFile.load_tile_patterns(chr_data)
+    RomFile.load_sprite_patterns(sprite_chr_data, chr_palette)
+
+
+    # DRAW THE STAGE:
 
     # use the decompressed tiles from the stage, the tile map, and the pattern table to create an image of the stage
-    stage = Image.new('RGBA', (stage_width*16*2,stage_height*16*2))
+    stage = Image.new('RGBA', (level.width*16*2,level.height*16*2))
     if show_overlay.get() == 1:
-        overlay = Image.new('RGBA', (stage_width*16*2, stage_height*16*2))
+        overlay = Image.new('RGBA', (level.width*16*2, level.height*16*2))
         overlay_draw = ImageDraw.Draw(overlay)
 
-    for i in range(stage_width * stage_height):
-        x = (i % stage_width) * 16 * 2
-        y = int(i / stage_width) * 16 * 2
-        p = rgba_to_rgb_palette(palette[attribute_lookup[tile_palette_map[stage_tile_info[i]]]])
+    for i in range(level.width * level.height):
+        x = (i % level.width) * 16 * 2
+        y = int(i / level.width) * 16 * 2
+        p = rgba_to_rgb_palette(palette[attribute_lookup[tile_palette_map[level.tile_map[i]]]])
         level.get_tile_at(i).draw(stage, x, y, p)
 
         if show_overlay.get() == 1:
@@ -708,21 +524,21 @@ def render_stage(canvas, stage_num):
 
     for i in range(0,spawn_count):#min(2,spawn_count)):
         # use the decompressed tiles from the stage, the tile map, and the pattern table to create an image of the stage
-        if spawn_id[i] == 0x59: # new chr bank specially loaded for final boss
+        if level.spawn_points[i].sprite_index == 0x59: # new chr bank specially loaded for final boss
             sprite_chr_data  = []
             sprite_chr_data  = rom[0x20000 + (0x400 * bank[0][0xF31 + bank[0xE][0xF9E + bank[0xE][0xFA6 + 3] + mick_mack]]):0x20000 + (0x400 * bank[0][0xF31 + bank[0xE][0xF9E + bank[0xE][0xFA6 + 3] + mick_mack]]) + 0x800]
             sprite_chr_data += rom[0x20000 + (0x400 * 0x1C):0x20000 + (0x400 * 0x1C) + 0x800]
-            load_sprite_characters(sprite_chr_data, chr_palette)
+            load_sprite_characters(sprite_chr_data, chr_palette) # This will crash :~(
         sprite_img = Image.new('RGB', (16*16*2,16*16*2))
         for j in range(spawn_width[i] * spawn_height[i]):
-            x = spawn_x[i] * 16 * 2 + (j % spawn_width[i]) * 8 * 2
-            y = spawn_y[i] * 16 * 2 + int(j / spawn_width[i]) * 8 * 2
+            x = level.spawn_points[i].x * 16 * 2 + (j % spawn_width[i]) * 8 * 2
+            y = level.spawn_points[i].y * 16 * 2 + int(j / spawn_width[i]) * 8 * 2
             p = spawn_color[i]
-            draw_sprite(stage, x, y, p, spawn_patterns[i][j])
+            RomFile.sprite_patterns[spawn_patterns[i][j]].draw(stage, x, y, p)
 
     if show_overlay.get() == 1:
         stage = Image.alpha_composite(stage, overlay)
-    canvas.config(scrollregion=(0, 0, stage_width*16*2, stage_height*16*2))
+    canvas.config(scrollregion=(0, 0, level.width*16*2, level.height*16*2))
 
 completely_solid_types = [0x08, 0x01, 0x1B, 0x20, 0x25]
 somewhat_solid_types = []
@@ -766,11 +582,14 @@ def update_info_label(event):
     canvas = event.widget
     x = (int)(canvas.canvasx(event.x) / 32)
     y = (int)(canvas.canvasy(event.y) / 32)
-    index = stage_width * y + x
-    if len(stage_tile_info) > index:
+    index = level.width * y + x
+    if len(level.tile_map) > index:
         type = level.get_tile_at(index).tile_type
         tile_set_index = level.tile_map[index]
-        info_var.set(f'Tile type: 0x{format(type, "02x")}, Tile set index: 0x{format(tile_set_index, "02x")}, Data index: 0x{format(index, "04x")}')
+        info_var.set(f'Tile type: 0x{format(type, "02x")}, ' +
+                     f' Tile set index: 0x{format(tile_set_index, "02x")},' +
+                     f' Data index: 0x{format(index, "04x")}, ' +
+                     f' X: {x}, Y: {y}')
     else:
         info_var.set(f'Out of range: {index}')
 
