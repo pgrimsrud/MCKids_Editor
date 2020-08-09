@@ -1,38 +1,15 @@
+from tkinter import filedialog
 from tkinter import *
 from PIL import Image, ImageDraw, ImageTk
-from compression import compress, decompress
-from spawnpoint import SpawnPoint
+from compression import decompress
 from level import Level
 from rom import RomFile
 from colors import colors
 from tileset import TileSet
-
-file_name = "mckids.nes"
-
-rom = open(file_name, "rb").read()
-ines = rom[0:0x10]
-rom = rom[0x10:]
-chr_rom = rom[0x20000:]
+from sprite import Sprite
 
 
-# After the header the next 128k consists of 16 8k chunks called banks
-# the routine at 0xF077 loads the bank you pass in the A register
-# the requested bank is loaded at 0xA000
-# the last two banks are always statically loaded at 0xC000 and 0xE000
-bank_base = 0xA000
-chr_bank_base = 0x8000
-bank = []
-chr_bank = []
-for i in range(0,16):
-    bank.append(rom[0x2000*i : 0x2000*i + 0x2000])
-    chr_bank.append(chr_rom[0x2000*i : 0x2000*i + 0x2000])
-
-# stage data pointers are in bank 1. The data consists of 3 arrays of 0x5D (93) elements
-# The three arrays are lower address byte, upper address byte, bank number
-# note that the address in the table includes the base bank offset of 0xA000 unless it is fixed bank 0xE or 0xF
-stages = []
-for i in range(0,0x5D):
-    stages.append({'bank': bank[1][0x5F6 + i], 'offset': ((bank[1][0x599 + i] << 8) + bank[1][0x53C + i])})
+RomFile.load_rom("mckids.nes")
 
 # supplementary table at 0xA08D lower, 0xA0B9 upper, 0xA0E5 bank
 # index came from 0x77D. this is for stuff in banks 0xD-0xF in the other table,
@@ -59,6 +36,7 @@ pi = None
 photo = None
 ti = None
 
+
 def rgba_to_rgb_palette(rgbaPalette):
     palette = []
     for i in range(len(rgbaPalette)):
@@ -69,6 +47,11 @@ def rgba_to_rgb_palette(rgbaPalette):
 
 level = Level()
 
+
+def draw_stage():
+    pass
+
+
 def render_stage(canvas, stage_num):
     global rom
     global window
@@ -77,24 +60,23 @@ def render_stage(canvas, stage_num):
     global stage_width
     global stage_tile_info
 
-    stage_data = []
     #print("loading bank 0x%X address 0x%X" %(stages[stage_num]['bank'], stages[stage_num]['offset']))
-    if stages[stage_num]['bank'] < 0xD:
-        stage_data = bank[stages[stage_num]['bank']][stages[stage_num]['offset'] - bank_base:]
+    if RomFile.stage_pointers[stage_num]['bank'] < 0xD:
+        stage_data = RomFile.banks[RomFile.stage_pointers[stage_num]['bank']][RomFile.stage_pointers[stage_num]['offset'] - RomFile.BANK_BASE:]
     else:
-        stage_data = chr_bank[stages[stage_num]['bank']][stages[stage_num]['offset']:]
+        stage_data = RomFile.chr_banks[RomFile.stage_pointers[stage_num]['bank']][RomFile.stage_pointers[stage_num]['offset']:]
 
 
     palette_index = []
     general_stage_data = []
     attribute_lookup = [2, 2, 2, 2, 2, 2, 2, 2]
     for i in range(2,6):
-        palette_bank = bank[1][0xE5 + stage_data[i]]
-        palette_addr = (bank[1][0xB9 + stage_data[i]] << 8) + bank[1][0x8D + stage_data[i]]
+        palette_bank = RomFile.banks[1][0xE5 + stage_data[i]]
+        palette_addr = (RomFile.banks[1][0xB9 + stage_data[i]] << 8) + RomFile.banks[1][0x8D + stage_data[i]]
         #print("stage_data[%d] = 0x%x" % (i, stage_data[i]))
         #print(palette_bank)
         #print("0x%X" % palette_addr)
-        general_stage_data.append(decompress(bank[palette_bank][palette_addr + 1 - bank_base:], bank[palette_bank][palette_addr - bank_base] >> 4, bank[palette_bank][palette_addr - bank_base] & 0xF))
+        general_stage_data.append(decompress(RomFile.banks[palette_bank][palette_addr + 1 - RomFile.BANK_BASE:], RomFile.banks[palette_bank][palette_addr - RomFile.BANK_BASE] >> 4, RomFile.banks[palette_bank][palette_addr - RomFile.BANK_BASE] & 0xF))
         #print(general_stage_data[i-2])
         for j in range(0,4):
             #print(general_stage_data[i-2][j])
@@ -120,51 +102,51 @@ def render_stage(canvas, stage_num):
     if stage_num == 29:
         attribute_lookup = [2, 2, 2, 2, 2, 2, 2, 2]
         for i in range(0,4):
-            attribute_lookup[bank[0xD][0x41 + i]] = i
-            palette_index[i] = bank[0xD][0x41 + i]
+            attribute_lookup[RomFile.banks[0xD][0x41 + i]] = i
+            palette_index[i] = RomFile.banks[0xD][0x41 + i]
     # the code has a special case to replace the palette indexes for stage index 48 & 50
     if stage_num == 48 or stage_num == 50:
         attribute_lookup = [2, 2, 2, 2, 2, 2, 2, 2]
         for i in range(0,4):
-            attribute_lookup[bank[0xD][0xA5 + i] & 7] = i
-            palette_index[i] = bank[0xD][0xA5 + i]
+            attribute_lookup[RomFile.banks[0xD][0xA5 + i] & 7] = i
+            palette_index[i] = RomFile.banks[0xD][0xA5 + i]
     # the code has a special case to replace the palette indexes for stage index 70
     if stage_num == 70:
         attribute_lookup = [2, 2, 2, 2, 2, 2, 2, 2]
         for i in range(0,4):
-            attribute_lookup[bank[0xD][0x23A + i] & 7] = i
-            palette_index[i] = bank[0xD][0x23A + i]
+            attribute_lookup[RomFile.banks[0xD][0x23A + i] & 7] = i
+            palette_index[i] = RomFile.banks[0xD][0x23A + i]
     # the code has a special case to replace the palette indexes for stage index 73
     if stage_num == 73:
         attribute_lookup = [2, 2, 2, 2, 2, 2, 2, 2]
         for i in range(0,4):
-            attribute_lookup[bank[0xD][0x22A + i] & 7] = i
-            palette_index[i] = bank[0xD][0x22A + i]
+            attribute_lookup[RomFile.banks[0xD][0x22A + i] & 7] = i
+            palette_index[i] = RomFile.banks[0xD][0x22A + i]
     # the code has a special case to replace the palette indexes for stage index 76
     if stage_num == 76:
         attribute_lookup = [2, 2, 2, 2, 2, 2, 2, 2]
         for i in range(0,4):
-            attribute_lookup[bank[0xD][0x25A + i] & 7] = i
-            palette_index[i] = bank[0xD][0x25A + i]
+            attribute_lookup[RomFile.banks[0xD][0x25A + i] & 7] = i
+            palette_index[i] = RomFile.banks[0xD][0x25A + i]
 
     #print(palette_index)
     #print(attribute_lookup)
 
     palette = []
-    palette_flags = bank[1][0x254:]
+    palette_flags = RomFile.banks[1][0x254:]
     for i in range(0,4):
         # the first (or 0) color for each group of 4 colors is always the stage background color
-        palette.append([colors[bank[1][0x1F7 + stage_num]]])
+        palette.append([colors[RomFile.banks[1][0x1F7 + stage_num]]])
     #print(palette)
     for i in range(0,4):
         for j in range(0,3):
-            palette[i].append(colors[bank[1][0x20*j + ((palette_index[i] & 0xF) + ((palette_index[i] & 0xF0) >> 1))
+            palette[i].append(colors[RomFile.banks[1][0x20*j + ((palette_index[i] & 0xF) + ((palette_index[i] & 0xF0) >> 1))
                               + ((palette_flags[stage_num] & 1) << 3)
                               + (((palette_flags[stage_num] & 4) >> 2) * 0x18)]])
 
     chr_palette_index = [0, 1]
-    chr_palette_index.append(bank[1][0x30E + stage_num])
-    chr_palette_index.append(bank[1][0x36B + stage_num])
+    chr_palette_index.append(RomFile.banks[1][0x30E + stage_num])
+    chr_palette_index.append(RomFile.banks[1][0x36B + stage_num])
     chr_palette = []
     for i in range(0,4):
         # the first (or 0) color for each group of 4 chr colors is always the alpha no matter what the value is
@@ -172,7 +154,7 @@ def render_stage(canvas, stage_num):
     #print(palette)
     for i in range(0,4):
         for j in range(0,3):
-            chr_palette[i].append(colors[bank[1][0x60 + 0xF*j + chr_palette_index[i]]])
+            chr_palette[i].append(colors[RomFile.banks[1][0x60 + 0xF*j + chr_palette_index[i]]])
                                                     #+ ((palette_index[i] & 0xF0) >> 1))
                                                     #+ ((palette_flags[stage_num] & 1) << 3)
                                                     #+ (((palette_flags[stage_num] & 4) >> 2) * 0x18)]])
@@ -233,10 +215,10 @@ def render_stage(canvas, stage_num):
     # lower address byte, upper address byte, bank number
     # note that the address in the table includes the base bank offset of 0xA000
     tile_map_comp = []
-    tile_map_comp.append(bank[bank[1][0xE5 + stage_data[2]]][(bank[1][0xB9 + stage_data[2]] << 8) + bank[1][0x8D + stage_data[2]] - bank_base:])
-    tile_map_comp.append(bank[bank[1][0xE5 + stage_data[3]]][(bank[1][0xB9 + stage_data[3]] << 8) + bank[1][0x8D + stage_data[3]] - bank_base:])
-    tile_map_comp.append(bank[bank[1][0xE5 + stage_data[4]]][(bank[1][0xB9 + stage_data[4]] << 8) + bank[1][0x8D + stage_data[4]] - bank_base:])
-    tile_map_comp.append(bank[bank[1][0xE5 + stage_data[5]]][(bank[1][0xB9 + stage_data[5]] << 8) + bank[1][0x8D + stage_data[5]] - bank_base:])
+    tile_map_comp.append(RomFile.banks[RomFile.banks[1][0xE5 + stage_data[2]]][(RomFile.banks[1][0xB9 + stage_data[2]] << 8) + RomFile.banks[1][0x8D + stage_data[2]] - RomFile.BANK_BASE:])
+    tile_map_comp.append(RomFile.banks[RomFile.banks[1][0xE5 + stage_data[3]]][(RomFile.banks[1][0xB9 + stage_data[3]] << 8) + RomFile.banks[1][0x8D + stage_data[3]] - RomFile.BANK_BASE:])
+    tile_map_comp.append(RomFile.banks[RomFile.banks[1][0xE5 + stage_data[4]]][(RomFile.banks[1][0xB9 + stage_data[4]] << 8) + RomFile.banks[1][0x8D + stage_data[4]] - RomFile.BANK_BASE:])
+    tile_map_comp.append(RomFile.banks[RomFile.banks[1][0xE5 + stage_data[5]]][(RomFile.banks[1][0xB9 + stage_data[5]] << 8) + RomFile.banks[1][0x8D + stage_data[5]] - RomFile.BANK_BASE:])
 
 
     # will need to make functions to reload these, and gui options to drive them
@@ -251,13 +233,13 @@ def render_stage(canvas, stage_num):
     stage_height = stage_data[1]
 
     # this is a magic number for stage 1, need to figure out how the game is doing this
-    chr_map = bank[1][0x111:]
+    chr_map = RomFile.banks[1][0x111:]
 
-    rom = bytearray(rom)
-    chr_data  = rom[0x20000 + (0x400 * chr_map[stage_data[2]]):0x20000 + (0x400 * chr_map[stage_data[2]]) + 0x400]
-    chr_data += rom[0x20000 + (0x400 * chr_map[stage_data[3]]):0x20000 + (0x400 * chr_map[stage_data[3]]) + 0x400]
-    chr_data += rom[0x20000 + (0x400 * chr_map[stage_data[4]]):0x20000 + (0x400 * chr_map[stage_data[4]]) + 0x400]
-    chr_data += rom[0x20000 + (0x400 * chr_map[stage_data[5]]):0x20000 + (0x400 * chr_map[stage_data[5]]) + 0x400]
+    # rom = bytearray(RomFile.rom)
+    chr_data = bytearray([])
+    for i in range(2, 6):
+        offset = 0x20000 + (0x400 * chr_map[stage_data[i]])
+        chr_data += RomFile.rom[offset:offset + 0x0400]
 
     # The sprite chr banks IDs are put into 0x31A and 0x31B
     # 0x31A was loaded from an array at bank 0 offset 0xF31.
@@ -269,40 +251,11 @@ def render_stage(canvas, stage_num):
     # The index to this array came from an array at bank 1 offset 0x2B1
     # The index to that was the stage num
     mick_mack = 1
-    sprite_chr_data  = rom[0x20000 + (0x400 * bank[0][0xF31 + bank[0xE][0xF9E + bank[0xE][0xFA6 + 3] + mick_mack]]):0x20000 + (0x400 * bank[0][0xF31 + bank[0xE][0xF9E + bank[0xE][0xFA6 + 3] + mick_mack]]) + 0x800]
-    sprite_chr_data += rom[0x20000 + (0x400 * bank[0][0xF31 + bank[1][0x2B1 + stage_num]]):0x20000 + (0x400 * bank[0][0xF31 + bank[1][0x2B1 + stage_num]]) + 0x800]
+    sprite_chr_data  = RomFile.rom[0x20000 + (0x400 * RomFile.banks[0][0xF31 + RomFile.banks[0xE][0xF9E + RomFile.banks[0xE][0xFA6 + 3] + mick_mack]]):0x20000 + (0x400 * RomFile.banks[0][0xF31 + RomFile.banks[0xE][0xF9E + RomFile.banks[0xE][0xFA6 + 3] + mick_mack]]) + 0x800]
+    sprite_chr_data += RomFile.rom[0x20000 + (0x400 * RomFile.banks[0][0xF31 + RomFile.banks[1][0x2B1 + stage_num]]):0x20000 + (0x400 * RomFile.banks[0][0xF31 + RomFile.banks[1][0x2B1 + stage_num]]) + 0x800]
 
-    stage_decompressed = decompress(stage_data[7:], stage_data[6] >> 4, stage_data[6] & 0xF)
     level.decompress(stage_data)
-
-    spawn_count = stage_decompressed[0]
-    stage_spawn_info = stage_decompressed[1:]
-
-    level.spawn_points.clear()
-    for i in range(spawn_count):
-        level.add_spawn_point(SpawnPoint(
-            stage_spawn_info[i], stage_spawn_info[spawn_count + i],
-            stage_spawn_info[spawn_count * 2 + i], stage_spawn_info[spawn_count * 3 + i]
-        ))
-    spawn_x = []
-    spawn_y = []
-    spawn_id = []
-    spawn_property = []
-    spawn_pattern_flag = []
-    spawn_width = []
-    spawn_height = []
-    spawn_patterns_bytes = []
-    spawn_patterns = []
-    spawn_color = []
-
-    for i in range(0,spawn_count):
-        spawn_x.append(stage_spawn_info[i])
-        spawn_y.append(stage_spawn_info[spawn_count+i])
-        spawn_id.append(stage_spawn_info[2*spawn_count+i])
-        spawn_property.append(stage_spawn_info[3*spawn_count+i])
-    stage_tile_info = stage_spawn_info[4*spawn_count:]
-    #for i in spawn_id:
-    #    print("ID: 0x%X" % i)
+    spawn_count = len(level.spawn_points)
 
     # spawn ID is used to index an array at bank 3 offset 0x11D3
     # that value is ANDed with 0x3C and ORed with 0x1 and stored to an array at 0x4C0
@@ -357,95 +310,9 @@ def render_stage(canvas, stage_num):
     # new 1A is A191
     # old 1A is A189 any Y came from 584
     # 584 came from 614
-    for i in range(0,spawn_count):
-        if spawn_id[i] >= 0x80 and spawn_id[i] <= 0x97:
-            spawn_id[i] = 0x50
-        val_614 = bank[3][0x10D3 + spawn_id[i]]
-        if spawn_id[i] == 0x4A or spawn_id[i] == 0x4B:
-            val_614 = bank[3][0x10D3 + 0x1F]
-        elif val_614 == 0:
-            val_614 = bank[3][0x10D3 + 0xA]
-        old_22 = (bank[0][0xF6D + val_614] << 8) + bank[0][0xF59 + val_614]
-        old_24 = (bank[0][0xF95 + val_614] << 8) + bank[0][0xF81 + val_614]
-        val_624 = bank[3][0x1153 + spawn_id[i]]
-        if spawn_id[i] == 0x4A or spawn_id[i] == 0x4B:
-            val_624 = bank[3][0x1153 + 0x1F]
-        elif spawn_id[i] == 0x29 or spawn_id[i] == 0x28:
-            val_624 = bank[3][0x1153 + 0xA]
-        elif spawn_id[i] == 0x6C:
-            val_624 = bank[3][0x1153 + 0x6F]
-        elif spawn_id[i] == 0x2A:
-            val_624 = 1
-        #print("0x%X" % spawn_id[i])
-        #print("0x%X" % old_22)
-        #print("0x%X" % old_24)
-        #print("0x%X" % val_624)
-        new_22 = (bank[0][old_24 - bank_base + val_624] << 8) + bank[0][old_22 - bank_base + val_624]
-        #print("0x%X" % new_22)
-        val_5A4 = bank[0][new_22 - bank_base + 1]
-        val_584 = val_614
-        val_F45 = bank[0][0xF45 + val_584]
-        old_1A = (bank[0][0xEF5 + val_584] << 8) + bank[0][0xEE1 + val_584]
-        old_1C = (bank[0][0xF1D + val_584] << 8) + bank[0][0xF09 + val_584]
-        new_1A = (bank[0][old_1C - bank_base + val_5A4] << 8) + bank[0][old_1A - bank_base + val_5A4]
-        #print("0x%X" % val_624)
-        #print("0x%X" % old_22)
-        #print("0x%X" % old_24)
-        #print("0x%X" % new_22)
-        #print("0x%X" % val_5A4)
-        #print("0x%X" % val_584)
-        #print("0x%X" % old_1A)
-        #print("0x%X" % old_1C)
-        #print("0x%X" % new_1A)
-        spawn_pattern_flag.append(bank[0][new_1A - bank_base])
-        if spawn_id[i] == 0x3A:
-            spawn_width.append(2)
-            spawn_height.append(3)
-        elif spawn_pattern_flag[i] == 0x80:
-            spawn_width.append(2)
-            spawn_height.append(4)
-        elif spawn_pattern_flag[i] == 0x82:
-            spawn_width.append(2)
-            spawn_height.append(4)
-        else:
-            spawn_width.append(bank[0][new_1A - bank_base + 3])
-            spawn_height.append(bank[0][new_1A - bank_base + 4])
-
-        # Below here is stuff that goes into the RomFile object
-        spawn_patterns_bytes.append(bank[0][new_1A - bank_base:new_1A - bank_base + 5 + (spawn_width[i] * spawn_height[i]) + 200])
-        spawn_color.append(spawn_patterns_bytes[i][0] & 0x3)
-        spawn_patterns.append([])
-        #print("len 0x%X" % len(spawn_patterns_bytes[i]))
-        #print("ID 0x%X" % spawn_id[i])
-        #print("F45 0x%X" % val_F45)
-        if spawn_id[i] == 0x3A:
-            spawn_patterns[i].append(spawn_patterns_bytes[i][0x03] | val_F45)
-            spawn_patterns[i].append(spawn_patterns_bytes[i][0x06] | val_F45)
-            spawn_patterns[i].append(spawn_patterns_bytes[i][0x09] | val_F45)
-            spawn_patterns[i].append(spawn_patterns_bytes[i][0x0C] | val_F45)
-            spawn_patterns[i].append(spawn_patterns_bytes[i][0x11] | val_F45)
-            spawn_patterns[i].append(spawn_patterns_bytes[i][0x14] | val_F45)
-        elif spawn_pattern_flag[i] == 0x80:
-            for j in range(0,4):
-                spawn_patterns[i].insert(0, spawn_patterns_bytes[i][j*6 + 6] | val_F45)
-                spawn_patterns[i].insert(0, spawn_patterns_bytes[i][j*6 + 3] | val_F45)
-        elif spawn_pattern_flag[i] == 0x82:
-            spawn_patterns[i].append(spawn_patterns_bytes[i][0x25] | val_F45)
-            spawn_patterns[i].append(spawn_patterns_bytes[i][0x28] | val_F45)
-            spawn_patterns[i].append(spawn_patterns_bytes[i][0x5D] | val_F45)
-            spawn_patterns[i].append(spawn_patterns_bytes[i][0x60] | val_F45)
-            spawn_patterns[i].append(spawn_patterns_bytes[i][0x79] | val_F45)
-            spawn_patterns[i].append(spawn_patterns_bytes[i][0x7C] | val_F45)
-            spawn_patterns[i].append(spawn_patterns_bytes[i][0x7F] | val_F45)
-            spawn_patterns[i].append(spawn_patterns_bytes[i][0x82] | val_F45)
-        else:
-            for j in range(5,5 + spawn_width[i] * spawn_height[i]):#len(spawn_patterns_bytes[i])):
-                #print(j)
-                #print(spawn_patterns_bytes[i][j])
-                #print(spawn_patterns[i])
-                spawn_patterns[i].append(spawn_patterns_bytes[i][j] | val_F45)
-        #for j in range(0,len(spawn_patterns[i])):
-        #    print("  0x%X" % spawn_patterns[i][j])
+    for i in range(0, spawn_count):
+        if RomFile.sprites[level.spawn_points[i].sprite_index] is None:
+            RomFile.sprites[level.spawn_points[i].sprite_index] = Sprite.load_sprite(level.spawn_points[i].sprite_index)
 
     for i in range(0, 4):
         RomFile.tile_sets[level.tile_set_indices[i]] = TileSet()
@@ -524,17 +391,12 @@ def render_stage(canvas, stage_num):
 
     for i in range(0,spawn_count):#min(2,spawn_count)):
         # use the decompressed tiles from the stage, the tile map, and the pattern table to create an image of the stage
-        if level.spawn_points[i].sprite_index == 0x59: # new chr bank specially loaded for final boss
-            sprite_chr_data  = []
-            sprite_chr_data  = rom[0x20000 + (0x400 * bank[0][0xF31 + bank[0xE][0xF9E + bank[0xE][0xFA6 + 3] + mick_mack]]):0x20000 + (0x400 * bank[0][0xF31 + bank[0xE][0xF9E + bank[0xE][0xFA6 + 3] + mick_mack]]) + 0x800]
-            sprite_chr_data += rom[0x20000 + (0x400 * 0x1C):0x20000 + (0x400 * 0x1C) + 0x800]
-            load_sprite_characters(sprite_chr_data, chr_palette) # This will crash :~(
-        sprite_img = Image.new('RGB', (16*16*2,16*16*2))
-        for j in range(spawn_width[i] * spawn_height[i]):
-            x = level.spawn_points[i].x * 16 * 2 + (j % spawn_width[i]) * 8 * 2
-            y = level.spawn_points[i].y * 16 * 2 + int(j / spawn_width[i]) * 8 * 2
-            p = spawn_color[i]
-            RomFile.sprite_patterns[spawn_patterns[i][j]].draw(stage, x, y, p)
+
+        sprite = RomFile.sprites[level.spawn_points[i].sprite_index]
+        for j in range(sprite.width * sprite.height):
+            x = level.spawn_points[i].x * 16 * 2 + (j % sprite.width) * 8 * 2
+            y = level.spawn_points[i].y * 16 * 2 + int(j / sprite.width) * 8 * 2 - ((sprite.height - 2) * 16)
+            RomFile.sprite_patterns[sprite.chr_pointers[j]].draw(stage, x, y, sprite.palette_index)
 
     if show_overlay.get() == 1:
         stage = Image.alpha_composite(stage, overlay)
@@ -574,6 +436,7 @@ def change_stage_dropdown(*args):
     xscrollbar.config(command=stage_canvas.xview)
     yscrollbar.config(command=stage_canvas.yview)
 
+
 def update_info_label(event):
     global stage_width
     global stage_tile_info
@@ -593,6 +456,28 @@ def update_info_label(event):
     else:
         info_var.set(f'Out of range: {index}')
 
+
+def save_level_button_clicked():
+    RomFile.save_level(int(tkvar.get()), level)
+
+
+def save_rom_button_clicked():
+    filename = filedialog.asksaveasfilename(defaultextension=".nes")
+    if len(filename) > 0:
+        RomFile.write_rom(filename)
+
+
+def paint_tile(event):
+    paint_with_index = 0x5B # throwable block in stage 1-1
+    canvas = event.widget
+    x = int(canvas.canvasx(event.x) / 32)
+    y = int(canvas.canvasy(event.y) / 32)
+    index = level.width * y + x
+    level.tile_map[index] = paint_with_index
+
+save_level_btn = Button(window, text="Save level", command=save_level_button_clicked)
+save_rom_btn = Button(window, text="Save ROM", command=save_rom_button_clicked)
+
 tkvar.trace('w', change_stage_dropdown)
 show_overlay.trace('w', change_stage_dropdown)
 
@@ -600,8 +485,11 @@ render_stage(stage_canvas, stage_num_list[tkvar.get()])
 stage_dropdown.place(x=5, y=5)
 overlay_checkbox.place(x=60, y=8)
 info_label.place(x=160, y=10)
-stage_canvas.bind('<Motion>', update_info_label)
+save_level_btn.place(x=800, y=8)
+save_rom_btn.place(x=880, y=8)
 
+stage_canvas.bind('<Motion>', update_info_label)
+stage_canvas.bind('<Button-1>', paint_tile)
 
 ti = ImageTk.PhotoImage(stage)
 stage_canvas.create_image(0, 0, anchor=NW, image=ti, tags="img")

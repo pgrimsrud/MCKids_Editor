@@ -10,6 +10,7 @@ class Level:
         self.tile_map = []
         self.tile_set_indices = [0, 0, 0, 0]
         self.spawn_points = []
+        self.sprites = []
 
     def decompress(self, compressed_data):
         self.width = compressed_data[0]
@@ -23,25 +24,29 @@ class Level:
         stage_spawn_info = stage_data[1:spawn_count * 4 + 1]
         self.tile_map = stage_data[spawn_count * 4 + 1:]
 
-        for i in range(0, spawn_count):
-            self.spawn_points.append(SpawnPoint(
-                stage_spawn_info[i],
-                stage_spawn_info[i + spawn_count],
-                stage_spawn_info[i + spawn_count * 2],
-                stage_spawn_info[i + spawn_count * 3]
+        self.spawn_points.clear()
+        for i in range(spawn_count):
+            self.add_spawn_point(SpawnPoint(
+                stage_spawn_info[i], stage_spawn_info[spawn_count + i],
+                stage_spawn_info[spawn_count * 2 + i], stage_spawn_info[spawn_count * 3 + i]
             ))
 
     def compress(self):
-        output = [self.width, self.height] + self.tile_set_indices
+        output = [self.width, self.height,
+                  self.tile_set_indices[0],
+                  self.tile_set_indices[1],
+                  self.tile_set_indices[2],
+                  self.tile_set_indices[3]]
 
-        stage_data = []
-        for i in range(len(self.spawn_points)):
+        spawn_count = len(self.spawn_points)
+        stage_data = [spawn_count]
+        for i in range(spawn_count):
             stage_data.append(self.spawn_points[i].x)
-        for i in range(len(self.spawn_points)):
+        for i in range(spawn_count):
             stage_data.append(self.spawn_points[i].y)
-        for i in range(len(self.spawn_points)):
-            stage_data.append(self.spawn_points[i].type)
-        for i in range(len(self.spawn_points)):
+        for i in range(spawn_count):
+            stage_data.append(self.spawn_points[i].sprite_index)
+        for i in range(spawn_count):
             stage_data.append(self.spawn_points[i].index)
 
         stage_data += self.tile_map
@@ -50,24 +55,22 @@ class Level:
         best_offset = 0
         best_length = 0
         best_result = []
-        for offset in range(8, 14):
+        for offset in range(8, 13):
             for length in range(4, 10):
                 result = compress(stage_data, offset, length)
+                print(f'Compressing {offset}:{length} = {len(result)} bytes')
                 if len(result) < best_size:
                     best_size = len(result)
                     best_offset = offset
                     best_length = length
                     best_result = result
 
-        output.append(best_offset << 4 + (best_length & 0x0F))
+        output.append((best_offset << 4) + (best_length & 0x0F))
         return output + best_result
 
     def get_tile_at(self, index):
         tile_index = self.tile_map[index]
         return RomFile.tile_sets[self.tile_set_indices[tile_index >> 6]].tiles[tile_index & 0x3F]
-
-    def set_tile_map(self, tile_map):
-        self.tile_map = tile_map
 
     def add_spawn_point(self, sprite):
         self.spawn_points.append(sprite)
