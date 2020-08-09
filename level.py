@@ -68,9 +68,11 @@ class Level:
         output.append((best_offset << 4) + (best_length & 0x0F))
         return output + best_result
 
-    def get_tile_at(self, index):
-        tile_index = self.tile_map[index]
+    def get_tile(self, tile_index):
         return RomFile.tile_sets[self.tile_set_indices[tile_index >> 6]].tiles[tile_index & 0x3F]
+
+    def get_tile_at(self, index):
+        return self.get_tile(self.tile_map[index])
 
     def add_spawn_point(self, sprite):
         self.spawn_points.append(sprite)

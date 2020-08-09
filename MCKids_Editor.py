@@ -46,7 +46,9 @@ def rgba_to_rgb_palette(rgbaPalette):
     return palette
 
 level = Level()
-
+palette = None
+attribute_lookup = None
+tile_palette_map = None
 
 def draw_stage():
     pass
@@ -59,6 +61,9 @@ def render_stage(canvas, stage_num):
     global stage
     global stage_width
     global stage_tile_info
+    global palette
+    global attribute_lookup
+    global tile_palette_map
 
     #print("loading bank 0x%X address 0x%X" %(stages[stage_num]['bank'], stages[stage_num]['offset']))
     if RomFile.stage_pointers[stage_num]['bank'] < 0xD:
@@ -468,12 +473,23 @@ def save_rom_button_clicked():
 
 
 def paint_tile(event):
+    global stage
+    global stage_canvas
+    global palette
+    global attribute_lookup
+    global tile_palette_map
+    global ti
+
     paint_with_index = 0x5B # throwable block in stage 1-1
     canvas = event.widget
     x = int(canvas.canvasx(event.x) / 32)
     y = int(canvas.canvasy(event.y) / 32)
     index = level.width * y + x
     level.tile_map[index] = paint_with_index
+    p = rgba_to_rgb_palette(palette[attribute_lookup[tile_palette_map[paint_with_index]]])
+    level.get_tile(paint_with_index).draw(stage, x*32, y*32, p)
+    ti = ImageTk.PhotoImage(stage)
+    stage_canvas.create_image(0, 0, anchor=NW, image=ti, tags="img")
 
 save_level_btn = Button(window, text="Save level", command=save_level_button_clicked)
 save_rom_btn = Button(window, text="Save ROM", command=save_rom_button_clicked)
