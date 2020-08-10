@@ -5,7 +5,6 @@ from PIL import Image, ImageDraw, ImageTk
 from rom import RomFile
 from level import Level
 from colors import rgba_to_rgb_palette
-from time import sleep
 
 class Editor:
     SOLID_TYPES = [0x08, 0x01, 0x1B, 0x20, 0x25]
@@ -35,9 +34,8 @@ class Editor:
 
         # Add "Palette/Tools"
         # Add status bar that shows "info_var"
-        statusbar = tk.Label(self.root_pane, textvariable=self.info_var, bd=1, relief=tk.SUNKEN, anchor=tk.W)
-        statusbar.pack(side=tk.BOTTOM, fill=tk.X)
-        # ......
+        status_bar = tk.Label(self.root_pane, textvariable=self.info_var, bd=1, relief=tk.SUNKEN, anchor=tk.W)
+        status_bar.pack(side=tk.BOTTOM, fill=tk.X)
 
         self.editor_canvas.bind('<Motion>', self.update_info_label)
         self.editor_canvas.bind('<Button-1>', self.canvas_clicked)
@@ -62,17 +60,10 @@ class Editor:
         self.menu_bar.add_cascade(label="Level", menu=level_menu)
 
         view_menu = Menu(self.menu_bar, tearoff=0)
-        view_menu.add_checkbutton(label="Show grid", onvalue=1, offvalue=0, variable=self.show_grid)
-        view_menu.add_checkbutton(label="Show solids", onvalue=1, offvalue=0, variable=self.show_solids)
-        view_menu.add_checkbutton(label="Show paths", onvalue=1, offvalue=0, variable=self.show_paths)
+        view_menu.add_checkbutton(label="Show grid", onvalue=1, offvalue=0, variable=self.show_grid, command=self.draw_stage)
+        view_menu.add_checkbutton(label="Show solids", onvalue=1, offvalue=0, variable=self.show_solids, command=self.draw_stage)
+        view_menu.add_checkbutton(label="Show paths", onvalue=1, offvalue=0, variable=self.show_paths, command=self.draw_stage)
         self.menu_bar.add_cascade(label="View", menu=view_menu)
-
-    def go_to_level(self):
-        i = 0  # debug this to find how we can determine the level
-        return
-
-    def load_stage_str(self, stage_str):
-        self.load_stage(int(stage_str))
 
     def load_stage(self, stage_index):
         self.current_stage = stage_index
@@ -88,6 +79,74 @@ class Editor:
             RomFile.levels[self.current_stage] = Level.load_level(self.current_stage, stage_data)
         self.draw_stage()
 
+    def __draw_grid(self, img):
+        level = RomFile.levels[self.current_stage]
+        for x in range(1, level.width):
+            img.line([(x * 32, 0), (x * 32, level.height * 32)], fill=(255, 255, 255, 100))
+        for y in range(1, level.height):
+            img.line([(0, y * 32), (level.width * 32, y * 32)], fill=(255, 255, 255, 100))
+
+    def __draw_solids(self, img):
+        level = RomFile.levels[self.current_stage]
+        solid_color = (255, 0, 0, 100)
+        for i in range(level.width * level.height):
+            x = (i % level.width) * 16 * 2
+            y = int(i / level.width) * 16 * 2
+            tile_type = level.get_tile_at(i).tile_type
+            if tile_type in Editor.SOLID_TYPES:
+                img.rectangle([x, y, x + 32, y + 32], solid_color)
+            if tile_type == 0x02 or tile_type == 0x18 or tile_type == 0x21:
+                img.polygon([(x, y + 32), (x + 32, y), (x + 32, y + 32)], solid_color)
+            if tile_type == 0x03 or tile_type == 0x17 or tile_type == 0x22:
+                img.polygon([(x, y), (x, y + 32), (x + 32, y + 32)], solid_color)
+            if tile_type == 0x04 or tile_type == 0x16 or tile_type == 0x23:
+                img.polygon([(x, y), (x + 32, y), (x + 32, y + 32)], solid_color)
+            if tile_type == 0x05 or tile_type == 0x15 or tile_type == 0x24:
+                img.polygon([(x, y), (x + 32, y), (x, y + 32)], solid_color)
+
+            if tile_type == 0x09:
+                img.polygon([(x, y + 32), (x + 32, y + 32), (x + 32, y + 16)], solid_color)
+            if tile_type == 0x0A:
+                img.polygon([(x, y + 16), (x + 32, y), (x + 32, y + 32), (x, y + 32)], solid_color)
+            if tile_type == 0x0B:
+                img.polygon([(x, y), (x + 32, y + 16), (x + 32, y + 32), (x, y + 32)], solid_color)
+            if tile_type == 0x0C:
+                img.polygon([(x, y + 16), (x + 32, y + 32), (x, y + 32)], solid_color)
+
+    def __draw_paths(self, img):
+        level = RomFile.levels[self.current_stage]
+        for i in range(level.width * level.height):
+            x = (i % level.width) * 16 * 2
+            y = int(i / level.width) * 16 * 2
+            tile_type = level.get_tile_at(i).tile_type
+            if tile_type == 0x70:
+                img.line([(x, y + 32), (x + 16, y + 16), (x + 32, y + 16)], fill=(0, 255, 0, 200), width=4)
+            if tile_type == 0x71:
+                img.line([(x + 32, y), (x + 16, y + 16), (x + 16, y + 32)], fill=(0, 255, 0, 200), width=4)
+            if tile_type == 0x72:
+                img.line([(x, y + 16), (x + 16, y + 16), (x + 32, y + 32)], fill=(0, 255, 0, 200), width=4)
+            if tile_type == 0x73:
+                img.line([(x, y), (x + 16, y + 16), (x + 16, y + 32)], fill=(0, 255, 0, 200), width=4)
+            if tile_type == 0x74:
+                img.line([(x + 16, y), (x + 16, y + 16), (x + 32, y + 32)], fill=(0, 255, 0, 200), width=4)
+            if tile_type == 0x75:
+                img.line([(x, y), (x + 16, y + 16), (x + 32, y + 16)], fill=(0, 255, 0, 200), width=4)
+            if tile_type == 0x76:
+                img.line([(x, y + 16), (x + 16, y + 16), (x + 32, y)], fill=(0, 255, 0, 200), width=4)
+            if tile_type == 0x77:
+                img.line([(x + 16, y), (x + 16, y + 16), (x, y + 32)], fill=(0, 255, 0, 200), width=4)
+            if tile_type == 0x78:
+                img.line([(x, y + 16), (x + 32, y + 16)], fill=(0, 255, 0, 200), width=4)
+            if tile_type == 0x79:
+                img.line([(x + 16, y), (x + 16, y + 32)], fill=(0, 255, 0, 200), width=4)
+            if tile_type == 0x7A:
+                img.line([(x, y), (x + 32, y + 32)], fill=(0, 255, 0, 200), width=4)
+            if tile_type == 0x7B:
+                img.line([(x, y + 32), (x + 32, y)], fill=(0, 255, 0, 200), width=4)
+            if tile_type == 0x7C:
+                img.line([(x, y + 16), (x + 32, y + 16)], fill=(0, 255, 0, 200), width=4)
+                img.line([(x + 16, y), (x + 16, y + 32)], fill=(0, 255, 0, 200), width=4)
+
     def draw_stage(self):  # DRAW THE STAGE:
         level = RomFile.levels[self.current_stage]
 
@@ -95,9 +154,8 @@ class Editor:
         level.get_tile_at(0)
         # use the decompressed tiles from the stage, the tile map, and the pattern table to create an image of the stage
         stage_img = Image.new('RGBA', (level.width * 16 * 2, level.height * 16 * 2))
-        if self.show_grid.get() == 1:
-            overlay_img = Image.new('RGBA', (level.width * 16 * 2, level.height * 16 * 2))
-            overlay_draw = ImageDraw.Draw(overlay_img)
+        overlay_img = Image.new('RGBA', (level.width * 16 * 2, level.height * 16 * 2))
+        overlay_draw = ImageDraw.Draw(overlay_img)
 
         for i in range(level.width * level.height):
             x = (i % level.width) * 16 * 2
@@ -105,58 +163,14 @@ class Editor:
             p = rgba_to_rgb_palette(level.palette[level.attribute_lookup[level.tile_palette_map[level.tile_map[i]]]])
             level.get_tile_at(i).draw(stage_img, x, y, p, level, int(level.tile_map[i] / 64))
 
-            if self.show_grid.get() == 1:
-                tile_type = level.get_tile_at(i).tile_type
-                solid_color = (255, 0, 0, 200)
-                if tile_type in Editor.SOLID_TYPES:
-                    overlay_draw.rectangle([x, y, x + 32, y + 32], solid_color)
-                if tile_type == 0x02 or tile_type == 0x18 or tile_type == 0x21:
-                    overlay_draw.polygon([(x, y + 32), (x + 32, y), (x + 32, y + 32)], solid_color)
-                if tile_type == 0x03 or tile_type == 0x17 or tile_type == 0x22:
-                    overlay_draw.polygon([(x, y), (x, y + 32), (x + 32, y + 32)], solid_color)
-                if tile_type == 0x04 or tile_type == 0x16 or tile_type == 0x23:
-                    overlay_draw.polygon([(x, y), (x + 32, y), (x + 32, y + 32)], solid_color)
-                if tile_type == 0x05 or tile_type == 0x15 or tile_type == 0x24:
-                    overlay_draw.polygon([(x, y), (x + 32, y), (x, y + 32)], solid_color)
+            tile_type = level.get_tile_at(i).tile_type
 
-                if tile_type == 0x09:
-                    overlay_draw.polygon([(x, y + 32), (x + 32, y + 32), (x + 32, y + 16)], solid_color)
-                if tile_type == 0x0A:
-                    overlay_draw.polygon([(x, y + 16), (x + 32, y), (x + 32, y + 32), (x, y + 32)], solid_color)
-                if tile_type == 0x0B:
-                    overlay_draw.polygon([(x, y), (x + 32, y + 16), (x + 32, y + 32), (x, y + 32)], solid_color)
-                if tile_type == 0x0C:
-                    overlay_draw.polygon([(x, y + 16), (x + 32, y + 32), (x, y + 32)], solid_color)
-
-                if tile_type == 0x70:
-                    overlay_draw.line([(x, y + 32), (x + 16, y + 16), (x + 32, y + 16)], fill=(0, 255, 0, 200), width=4)
-                if tile_type == 0x71:
-                    overlay_draw.line([(x + 32, y), (x + 16, y + 16), (x + 16, y + 32)], fill=(0, 255, 0, 200), width=4)
-                if tile_type == 0x72:
-                    overlay_draw.line([(x, y + 16), (x + 16, y + 16), (x + 32, y + 32)], fill=(0, 255, 0, 200), width=4)
-                if tile_type == 0x73:
-                    overlay_draw.line([(x, y), (x + 16, y + 16), (x + 16, y + 32)], fill=(0, 255, 0, 200), width=4)
-                if tile_type == 0x74:
-                    overlay_draw.line([(x + 16, y), (x + 16, y + 16), (x + 32, y + 32)], fill=(0, 255, 0, 200), width=4)
-                if tile_type == 0x75:
-                    overlay_draw.line([(x, y), (x + 16, y + 16), (x + 32, y + 16)], fill=(0, 255, 0, 200), width=4)
-                if tile_type == 0x76:
-                    overlay_draw.line([(x, y + 16), (x + 16, y + 16), (x + 32, y)], fill=(0, 255, 0, 200), width=4)
-                if tile_type == 0x77:
-                    overlay_draw.line([(x + 16, y), (x + 16, y + 16), (x, y + 32)], fill=(0, 255, 0, 200), width=4)
-                if tile_type == 0x78:
-                    overlay_draw.line([(x, y + 16), (x + 32, y + 16)], fill=(0, 255, 0, 200), width=4)
-                if tile_type == 0x79:
-                    overlay_draw.line([(x + 16, y), (x + 16, y + 32)], fill=(0, 255, 0, 200), width=4)
-                if tile_type == 0x7A:
-                    overlay_draw.line([(x, y), (x + 32, y + 32)], fill=(0, 255, 0, 200), width=4)
-                if tile_type == 0x7B:
-                    overlay_draw.line([(x, y + 32), (x + 32, y)], fill=(0, 255, 0, 200), width=4)
-                if tile_type == 0x7C:
-                    overlay_draw.line([(x, y + 16), (x + 32, y + 16)], fill=(0, 255, 0, 200), width=4)
-                    overlay_draw.line([(x + 16, y), (x + 16, y + 32)], fill=(0, 255, 0, 200), width=4)
-
-                overlay_draw.rectangle([x, y, x + 32, y + 32], outline=(255, 255, 255, 100))
+        if self.show_solids.get() == 1:
+            self.__draw_solids(overlay_draw)
+        if self.show_grid.get() == 1:
+            self.__draw_grid(overlay_draw)
+        if self.show_paths.get() == 1:
+            self.__draw_paths(overlay_draw)
 
         for i in range(0, len(level.spawn_points)):
             sprite = RomFile.sprites[level.spawn_points[i].sprite_index]
@@ -165,8 +179,7 @@ class Editor:
                 y = level.spawn_points[i].y * 16 * 2 + int(j / sprite.width) * 8 * 2 - ((sprite.height - 2) * 16)
                 RomFile.get_sprite_chr(sprite.chr_pointers[j], sprite.palette_index, level).draw(stage_img, x, y, 0)
 
-        if self.show_grid.get() == 1:
-            stage_img = Image.alpha_composite(stage_img, overlay_img)
+        stage_img = Image.alpha_composite(stage_img, overlay_img)
         self.ti = ImageTk.PhotoImage(stage_img)
 
         self.editor_canvas.config(scrollregion=(0, 0, level.width * 16 * 2, level.height * 16 * 2))
