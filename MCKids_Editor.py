@@ -472,7 +472,13 @@ def save_rom_button_clicked():
         RomFile.write_rom(filename)
 
 
-def paint_tile(event):
+def canvas_clicked(event):
+    canvas = event.widget
+    x = int(canvas.canvasx(event.x) / 32)
+    y = int(canvas.canvasy(event.y) / 32)
+    paint_tile(canvas, x, y)
+
+def paint_tile(canvas, x, y):
     global stage
     global stage_canvas
     global palette
@@ -481,15 +487,13 @@ def paint_tile(event):
     global ti
 
     paint_with_index = 0x5B # throwable block in stage 1-1
-    canvas = event.widget
-    x = int(canvas.canvasx(event.x) / 32)
-    y = int(canvas.canvasy(event.y) / 32)
     index = level.width * y + x
-    level.tile_map[index] = paint_with_index
-    p = rgba_to_rgb_palette(palette[attribute_lookup[tile_palette_map[paint_with_index]]])
-    level.get_tile(paint_with_index).draw(stage, x*32, y*32, p)
-    ti = ImageTk.PhotoImage(stage)
-    stage_canvas.create_image(0, 0, anchor=NW, image=ti, tags="img")
+    if level.tile_map[index] != paint_with_index:
+        level.tile_map[index] = paint_with_index
+        p = rgba_to_rgb_palette(palette[attribute_lookup[tile_palette_map[paint_with_index]]])
+        level.get_tile(paint_with_index).draw(stage, x*32, y*32, p)
+        ti = ImageTk.PhotoImage(stage)
+        stage_canvas.itemconfig("img",image=ti)
 
 save_level_btn = Button(window, text="Save level", command=save_level_button_clicked)
 save_rom_btn = Button(window, text="Save ROM", command=save_rom_button_clicked)
@@ -505,7 +509,8 @@ save_level_btn.place(x=800, y=8)
 save_rom_btn.place(x=880, y=8)
 
 stage_canvas.bind('<Motion>', update_info_label)
-stage_canvas.bind('<Button-1>', paint_tile)
+stage_canvas.bind('<Button-1>', canvas_clicked)
+stage_canvas.bind('<B1-Motion>', canvas_clicked)
 
 ti = ImageTk.PhotoImage(stage)
 stage_canvas.create_image(0, 0, anchor=NW, image=ti, tags="img")
