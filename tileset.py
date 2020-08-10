@@ -5,7 +5,7 @@ class TileSet:
     def __init__(self):
         self.tiles = []
 
-    def from_decompressed_bytes(self, data, index):
+    def from_decompressed_bytes(self, data):
         self.tiles.clear()
         tile_set_size = data[4]
 
@@ -14,7 +14,7 @@ class TileSet:
 
             if tile_set_size > i:
                 for j in range(0, 4):
-                    tile.characters[j] = data[5 + i + (j * tile_set_size)] + 0x40 * index
+                    tile.characters[j] = data[5 + i + (j * tile_set_size)]
                 type_pos = 6 + i + (tile_set_size * 5)
                 if len(data) > type_pos:
                     tile.tile_type = data[type_pos]

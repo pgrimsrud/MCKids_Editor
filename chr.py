@@ -27,7 +27,7 @@ class Chr:
         return Chr([img], Chr.INDEXED)
 
     @staticmethod
-    def make_chr_with_alpha(chr_data, palettes):
+    def old_make_chr_with_alpha(chr_data, palettes):
         pixels = Chr.pattern_map(chr_data)
         images = []
         for p in palettes:
@@ -37,6 +37,18 @@ class Chr:
                     img.putpixel((x, y), p[pixels[x + y * 8]])
             img = img.resize((16, 16), resample=Image.NEAREST)
             images.append(img)
+        return Chr(images, Chr.WITH_ALPHA)
+
+    @staticmethod
+    def make_chr_with_alpha(chr_data, palette):
+        pixels = Chr.pattern_map(chr_data)
+        images = []
+        img = Image.new('RGBA', (8, 8))
+        for x in range(8):
+            for y in range(8):
+                img.putpixel((x, y), palette[pixels[x + y * 8]])
+        img = img.resize((16, 16), resample=Image.NEAREST)
+        images.append(img)
         return Chr(images, Chr.WITH_ALPHA)
 
     # this converts the 16 byte pattern table data to an array of color indexes 0-3 for the 8x8 tile

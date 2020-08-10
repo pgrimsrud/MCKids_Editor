@@ -82,3 +82,10 @@ colors = [
 #           (100,100,100),
 #           (200,200,200),
 #           (255,255,255)]
+def rgba_to_rgb_palette(rgbaPalette):
+    palette = []
+    for i in range(len(rgbaPalette)):
+        palette.append(rgbaPalette[i][0])
+        palette.append(rgbaPalette[i][1])
+        palette.append(rgbaPalette[i][2])
+    return palette
