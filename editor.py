@@ -25,29 +25,34 @@ class Editor:
 
         self.__setup_menu()
 
-        self.root_pane = PanedWindow(bd=4, relief="raised")
+        # Add status bar that shows "info_var"
+        status_bar = tk.Label(self.window, textvariable=self.info_var, bd=1, relief=tk.SUNKEN, anchor=tk.W)
+        status_bar.pack(side=tk.BOTTOM, fill=tk.X)
+
+        self.root_pane = PanedWindow(bd=4, relief="raised", width=1024)
         self.root_pane.pack(fill=BOTH, expand=1)
-
-        # Add Canvas
-        self.canvas_pane = PanedWindow(self.root_pane, bd=4, relief="raised", width=1048)
-        self.root_pane.add(self.canvas_pane)
-        self.editor_canvas = Canvas(self.canvas_pane, width=1024, height=1024, borderwidth=0, highlightthickness=0)
-        self.canvas_pane.add(self.editor_canvas)
-
-        self.xscrollbar = Scrollbar(self.root_pane, orient=HORIZONTAL)
-        self.xscrollbar.place(x=0, y=1024, width=1024)
-        self.yscrollbar = Scrollbar(self.root_pane, orient=VERTICAL)
-        self.yscrollbar.place(x=1024, y=0, height=1024)
 
         # Add "Palette/Tools"
         self.tools_pane = PanedWindow(self.root_pane, bd=4, relief="raised")
         self.root_pane.add(self.tools_pane)
+        self.tools_canvas = Canvas(self.tools_pane, width=1024, height=1024, borderwidth=0, highlightthickness=0)
+        self.tools_pane.add(self.tools_canvas, width=475)
 
-        # Add status bar that shows "info_var"
-        status_bar = tk.Label(self.root_pane, textvariable=self.info_var, bd=1, relief=tk.SUNKEN, anchor=tk.W)
-        status_bar.pack(side=tk.BOTTOM, fill=tk.X)
+        # Add Canvas
+        self.canvas_pane = PanedWindow(self.root_pane, bd=0, relief="raised", width=2024, height=1024)
+        self.editor_canvas = Canvas(self.canvas_pane, width=1024, height=1024, borderwidth=0, highlightthickness=0)
+        self.canvas_pane.add(self.editor_canvas)
 
-        self.tile_tools = TileTools(self.tools_pane)
+        self.xscrollbar = Scrollbar(self.canvas_pane, orient=HORIZONTAL)
+        #self.xscrollbar.place(x=0, y=1024, width=1024)
+        self.xscrollbar.pack(side=tk.BOTTOM, fill="x")
+        self.yscrollbar = Scrollbar(self.canvas_pane, orient=VERTICAL)
+        #self.yscrollbar.place(x=1024, y=0, height=1024)
+        self.yscrollbar.pack(side=tk.RIGHT, fill="y")
+        self.root_pane.add(self.canvas_pane)
+
+
+        self.tile_tools = TileTools(self.tools_canvas)
 
         self.editor_canvas.bind('<Motion>', self.update_info_label)
         self.editor_canvas.bind('<Button-1>', self.canvas_clicked)
@@ -93,24 +98,27 @@ class Editor:
         self.tile_tools.update_tiles(stage_index)
         self.draw_stage()
 
+    def redraw(self):
+        complete_img = Image.alpha_composite(self.stage_img, self.overlay_img)
+        self.ti = ImageTk.PhotoImage(complete_img)
+        self.editor_canvas.create_image(0, 0, anchor=NW, image=self.ti, tags="img")
+
     def draw_tile(self, x, y):
         level = RomFile.levels[self.current_stage]
         i = y * level.width + x
         p = rgba_to_rgb_palette(level.palette[level.attribute_lookup[level.tile_palette_map[level.tile_map[i]]]])
         level.get_tile_at(i).draw(self.stage_img, x * 32, y * 32, p, level, int(level.tile_map[i] / 64))
-
         draw_context = ImageDraw.Draw(self.overlay_img)
         self.__clear_tile(draw_context, x, y)
+
         if self.show_solids.get() == 1:
             self.__draw_tile_solids(draw_context, i, level)
         if self.show_grid.get() == 1:
             self.__draw_tile_grid(draw_context, x, y)
         if self.show_paths.get() == 1:
-            self.__draw_tile_paths(draw_context)
+            self.__draw_tile_paths(draw_context, i, level)
 
-        complete_img = Image.alpha_composite(self.stage_img, self.overlay_img)
-        self.ti = ImageTk.PhotoImage(complete_img)
-        self.editor_canvas.create_image(0, 0, anchor=NW, image=self.ti, tags="img")
+        self.redraw()
 
     def __clear_tile(self, draw_context, x, y):
         draw_context.rectangle((x * 32, y * 32, x * 32 + 32, y * 32 + 32), (0, 0, 0, 0))
@@ -192,6 +200,15 @@ class Editor:
             img.line([(x, y + 16), (x + 32, y + 16)], fill=(0, 255, 0, 200), width=4)
             img.line([(x + 16, y), (x + 16, y + 32)], fill=(0, 255, 0, 200), width=4)
 
+    def draw_sprites(self):
+        level = RomFile.levels[self.current_stage]
+
+        for i in range(0, len(level.spawn_points)):
+            sprite = RomFile.sprites[level.spawn_points[i].sprite_index]
+            for j in range(sprite.width * sprite.height):
+                x = level.spawn_points[i].x * 16 * 2 + (j % sprite.width) * 8 * 2
+                y = level.spawn_points[i].y * 16 * 2 + int(j / sprite.width) * 8 * 2 - ((sprite.height - 2) * 16)
+                RomFile.get_sprite_chr(sprite.chr_pointers[j], sprite.palette_index, level).draw(self.stage_img, x, y, 0)
 
     def draw_stage(self):  # DRAW THE STAGE:
         level = RomFile.levels[self.current_stage]
@@ -214,12 +231,7 @@ class Editor:
         if self.show_paths.get() == 1:
             self.__draw_paths(overlay_draw)
 
-        for i in range(0, len(level.spawn_points)):
-            sprite = RomFile.sprites[level.spawn_points[i].sprite_index]
-            for j in range(sprite.width * sprite.height):
-                x = level.spawn_points[i].x * 16 * 2 + (j % sprite.width) * 8 * 2
-                y = level.spawn_points[i].y * 16 * 2 + int(j / sprite.width) * 8 * 2 - ((sprite.height - 2) * 16)
-                RomFile.get_sprite_chr(sprite.chr_pointers[j], sprite.palette_index, level).draw(self.stage_img, x, y, 0)
+        self.draw_sprites()
 
         complete_img = Image.alpha_composite(self.stage_img, self.overlay_img)
         self.ti = ImageTk.PhotoImage(complete_img)
@@ -272,4 +284,6 @@ class Editor:
         if level.tile_map[index] != paint_with_index:
             level.tile_map[index] = paint_with_index
             self.draw_tile(x, y)
+            self.draw_sprites()
+            self.redraw()
             # self.draw_stage()
