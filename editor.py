@@ -6,6 +6,8 @@ from rom import RomFile
 from level import Level
 from colors import rgba_to_rgb_palette
 from tile_tools import TileTools
+from resize_tool import ResizeTool
+from sprite_tools import SpriteTools
 
 
 class Editor:
@@ -33,9 +35,11 @@ class Editor:
         self.root_pane.pack(fill=BOTH, expand=1)
 
         # Add "Palette/Tools"
-        self.tools_pane = PanedWindow(self.root_pane, bd=4, relief="raised")
+        self.tools_pane = PanedWindow(self.root_pane, bd=4, relief="raised", orient=VERTICAL)
         self.root_pane.add(self.tools_pane)
         self.tools_canvas = Canvas(self.tools_pane, width=1024, height=1024, borderwidth=0, highlightthickness=0)
+        self.sprite_canvas = Canvas(self.tools_pane)
+        self.tools_pane.add(self.sprite_canvas)
         self.tools_pane.add(self.tools_canvas, width=475)
 
         # Add Canvas
@@ -51,7 +55,7 @@ class Editor:
         self.yscrollbar.pack(side=tk.RIGHT, fill="y")
         self.root_pane.add(self.canvas_pane)
 
-
+        self.sprite_tools = SpriteTools(self.sprite_canvas, self.draw_stage)
         self.tile_tools = TileTools(self.tools_canvas)
 
         self.editor_canvas.bind('<Motion>', self.update_info_label)
@@ -68,8 +72,16 @@ class Editor:
         file_menu.add_command(label="Save level", command=self.save_level_button_clicked)
         file_menu.add_command(label="Write ROM file", command=self.save_rom_button_clicked)
         file_menu.add_separator()
+        file_menu.add_command(label="Export level", command=self.export_level_clicked)
+        file_menu.add_command(label="Import level", command=self.import_level_clicked)
+        file_menu.add_separator()
         file_menu.add_command(label="Exit", command=self.window.quit)
         self.menu_bar.add_cascade(label="File", menu=file_menu)
+
+        edit_menu = Menu(self.menu_bar, tearoff=0)
+        edit_menu.add_command(label="Resize level", command=self.resize_stage_clicked)
+        edit_menu.add_command(label="Clear level", command=self.clear_stage_clicked)
+        self.menu_bar.add_cascade(label="Edit", menu=edit_menu)
 
         level_menu = Menu(self.menu_bar, tearoff=0)
         for i in range(0x5D):
@@ -82,10 +94,31 @@ class Editor:
         view_menu.add_checkbutton(label="Show paths", onvalue=1, offvalue=0, variable=self.show_paths, command=self.draw_stage)
         self.menu_bar.add_cascade(label="View", menu=view_menu)
 
+    def resize_stage_clicked(self):
+        ResizeTool(self.window, RomFile.levels[self.current_stage], self.draw_stage)
+
+    def clear_stage_clicked(self):
+        for i in range(len(RomFile.levels[self.current_stage].tile_map)):
+            RomFile.levels[self.current_stage].tile_map[i] = self.tile_tools.selected_tile
+        self.draw_stage()
+
+    def export_level_clicked(self):
+        filename = filedialog.asksaveasfilename(defaultextension=".nes")
+        if len(filename):
+            with open(filename, "wb") as fp:
+                fp.write(bytearray(RomFile.levels[self.current_stage].compress()))
+
+    def import_level_clicked(self):
+        filename = filedialog.askopenfilename(defaultextension=".nes")
+        if len(filename):
+            with open(filename, "rb") as fp:
+                data = fp.read()
+                RomFile.levels[self.current_stage] = Level.load_level(self.current_stage, data)
+                self.draw_stage()
+
     def load_stage(self, stage_index):
         self.current_stage = stage_index
         if RomFile.levels[self.current_stage] is None:
-            # print("loading bank 0x%X address 0x%X" %(stages[stage_num]['bank'], stages[stage_num]['offset']))
             if RomFile.stage_pointers[self.current_stage]['bank'] < 0xD:
                 stage_data = RomFile.banks[RomFile.stage_pointers[self.current_stage]['bank']][
                              RomFile.stage_pointers[self.current_stage]['offset'] - RomFile.BANK_BASE:]
@@ -96,11 +129,12 @@ class Editor:
             RomFile.levels[self.current_stage] = Level.load_level(self.current_stage, stage_data)
 
         self.tile_tools.update_tiles(stage_index)
+        self.sprite_tools.load_from_level(RomFile.levels[self.current_stage])
         self.draw_stage()
 
-    def redraw(self):
+    def redraw(self, box):
         complete_img = Image.alpha_composite(self.stage_img, self.overlay_img)
-        self.ti = ImageTk.PhotoImage(complete_img)
+        self.ti.paste(complete_img, box)
         self.editor_canvas.create_image(0, 0, anchor=NW, image=self.ti, tags="img")
 
     def draw_tile(self, x, y):
@@ -117,8 +151,6 @@ class Editor:
             self.__draw_tile_grid(draw_context, x, y)
         if self.show_paths.get() == 1:
             self.__draw_tile_paths(draw_context, i, level)
-
-        self.redraw()
 
     def __clear_tile(self, draw_context, x, y):
         draw_context.rectangle((x * 32, y * 32, x * 32 + 32, y * 32 + 32), (0, 0, 0, 0))
@@ -285,5 +317,5 @@ class Editor:
             level.tile_map[index] = paint_with_index
             self.draw_tile(x, y)
             self.draw_sprites()
-            self.redraw()
+            self.redraw((x * 32, y * 32, x * 32 + 32, y * 32 + 32))
             # self.draw_stage()
