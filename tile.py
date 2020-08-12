@@ -1,4 +1,3 @@
-from rom import RomFile
 
 
 class Tile:

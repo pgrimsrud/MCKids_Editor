@@ -9,6 +9,8 @@ from colors import rgba_to_rgb_palette
 from tile_tools import TileTools
 from resize_tool import ResizeTool
 from sprite_tools import SpriteTools
+from level_properties import LevelProperties
+from sprite import Sprite
 
 
 class Editor:
@@ -27,6 +29,7 @@ class Editor:
         self.overlay_img = None
         self.rom_file = None
         self.project = None
+        self.next_click_callback = None
 
         self.__setup_menu()
 
@@ -41,7 +44,9 @@ class Editor:
         self.tools_pane = PanedWindow(self.root_pane, bd=4, relief="raised", orient=VERTICAL)
         self.root_pane.add(self.tools_pane)
         self.tools_canvas = Canvas(self.tools_pane, width=1024, height=1024, borderwidth=0, highlightthickness=0)
-        self.sprite_canvas = Canvas(self.tools_pane)
+        self.sprite_canvas = Canvas(self.tools_pane, highlightthickness=0)
+        self.property_canvas = Canvas(self.tools_pane, highlightthickness=0)
+        self.tools_pane.add(self.property_canvas)
         self.tools_pane.add(self.sprite_canvas)
         self.tools_pane.add(self.tools_canvas, width=475)
 
@@ -58,8 +63,9 @@ class Editor:
         self.yscrollbar.pack(side=tk.RIGHT, fill="y")
         self.root_pane.add(self.canvas_pane)
 
-        self.sprite_tools = SpriteTools(self.sprite_canvas, self.draw_stage)
-        self.tile_tools = TileTools(self.tools_canvas)
+        self.sprite_tools = SpriteTools(self.sprite_canvas, self)
+        self.tile_tools = TileTools(self.tools_canvas, self)
+        self.level_properties = LevelProperties(self.property_canvas, self)
 
         self.editor_canvas.bind('<Motion>', self.update_info_label)
         self.editor_canvas.bind('<Button-1>', self.canvas_clicked)
@@ -138,13 +144,13 @@ class Editor:
         self.draw_stage()
 
     def export_level_clicked(self):
-        filename = filedialog.asksaveasfilename(defaultextension=".nes", initialfile=".nes", filetypes=[("Nintendo Entertainment System ROM", "*.nes"), ("All Files", "*")])
+        filename = filedialog.asksaveasfilename(defaultextension=".mcl", initialfile=".mcl", filetypes=[("M.C. Kids Level", "*.mcl"), ("All Files", "*")])
         if len(filename):
             with open(filename, "wb") as fp:
                 fp.write(bytearray(self.rom_file.levels[self.current_stage].compress()))
 
     def import_level_clicked(self):
-        filename = filedialog.askopenfilename(defaultextension=".nes", filetypes=[("Nintendo Entertainment System ROM", "*.nes"), ("All Files", "*")])
+        filename = filedialog.askopenfilename(defaultextension=".mcl", filetypes=[("M.C. Kids Level", "*.mcl"), ("All Files", "*")])
         if len(filename):
             with open(filename, "rb") as fp:
                 data = fp.read()
@@ -165,12 +171,13 @@ class Editor:
 
         self.tile_tools.update_tiles(stage_index, self.rom_file)
         self.sprite_tools.load_from_level(self.rom_file.levels[self.current_stage])
+        self.level_properties.change_level(stage_index)
         self.draw_stage()
 
     def redraw(self, box):
         complete_img = Image.alpha_composite(self.stage_img, self.overlay_img)
         self.ti.paste(complete_img, box)
-        self.editor_canvas.create_image(0, 0, anchor=NW, image=self.ti, tags="img")
+        # self.editor_canvas.create_image(0, 0, anchor=NW, image=self.ti, tags="img")
 
     def draw_tile(self, x, y):
         level = self.rom_file.levels[self.current_stage]
@@ -271,11 +278,22 @@ class Editor:
         level = self.rom_file.levels[self.current_stage]
 
         for i in range(0, len(level.spawn_points)):
-            sprite = self.rom_file.sprites[level.spawn_points[i].sprite_index]
+            sprite = self.rom_file.get_sprite(level.spawn_points[i].sprite_index)
             for j in range(sprite.width * sprite.height):
                 x = level.spawn_points[i].x * 16 * 2 + (j % sprite.width) * 8 * 2
                 y = level.spawn_points[i].y * 16 * 2 + int(j / sprite.width) * 8 * 2 - ((sprite.height - 2) * 16)
                 self.rom_file.get_sprite_chr(sprite.chr_pointers[j], sprite.palette_index, level).draw(self.stage_img, x, y, 0)
+            if i == self.sprite_tools.index:
+                stage_draw = ImageDraw.Draw(self.stage_img)
+                x = level.spawn_points[i].x * 32
+                y = level.spawn_points[i].y * 32 - ((sprite.height - 2) * 16)
+                stage_draw.rectangle(((x, y), (x + sprite.width * 16, y + sprite.height * 16)), outline="red", width=2)
+
+    def draw_kid(self):
+        x = self.rom_file.start_pos_x[self.current_stage] * 32
+        y = self.rom_file.start_pos_y[self.current_stage] * 32 - 64
+        stage_draw = ImageDraw.Draw(self.stage_img)
+        stage_draw.rectangle(((x, y), (x + 32, y + 64)), outline="green", width=2)
 
     def draw_stage(self):  # DRAW THE STAGE:
         level = self.rom_file.levels[self.current_stage]
@@ -299,6 +317,7 @@ class Editor:
             self.__draw_paths(overlay_draw)
 
         self.draw_sprites()
+        self.draw_kid()
 
         complete_img = Image.alpha_composite(self.stage_img, self.overlay_img)
         self.ti = ImageTk.PhotoImage(complete_img)
@@ -309,9 +328,6 @@ class Editor:
         self.editor_canvas.config(xscrollcommand=self.xscrollbar.set, yscrollcommand=self.yscrollbar.set)
         self.xscrollbar.config(command=self.editor_canvas.xview)
         self.yscrollbar.config(command=self.editor_canvas.yview)
-
-    def change_stage_dropdown(self, *args):
-        self.load_stage(self.editor_canvas, self.current_stage)
 
     def update_info_label(self, event):
         if self.rom_file != None:
@@ -338,11 +354,18 @@ class Editor:
         if len(filename) > 0:
             self.rom_file.write_rom(filename)
 
+    def set_next_click_callback(self, callback):
+        self.next_click_callback = callback
+
     def canvas_clicked(self, event):
         canvas = event.widget
         x = int(canvas.canvasx(event.x) / 32)
         y = int(canvas.canvasy(event.y) / 32)
-        self.paint_tile(canvas, x, y)
+        if self.next_click_callback is None:
+            self.paint_tile(canvas, x, y)
+        else:
+            self.next_click_callback(x, y)
+            self.next_click_callback = None
 
     def paint_tile(self, canvas, x, y):
         # paint_with_index = 0x5B  # throwable block in stage 1-1

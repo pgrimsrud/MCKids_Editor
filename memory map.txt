@@ -34,6 +34,8 @@ Setting health above 3 works, but is not displayed
 0555 = Horizontal speed (negative = left) (unverified)
 0556 = Vertical speed (negative = up) (unverified)
 
+0681-0682 = x
+
 06EC - 06F2 (0007) = Stage clear flags
 06F4 - 06FA (0007) = Goal block flags (same pattern as stage clear flags)
 06FC - 0702 (0007) = Unidentified flags
@@ -166,3 +168,49 @@ Sprite IDs:
 0x77 = Path following platform (Falling only?)
 0x79 = Big spring (left side)
 0x7A = Upside down big spring (left side)
+
+
+tile sets:
+1: Baiscs, Arches, blocks, spinners, springs, goals etc.
+2: Hilly background
+3: Grass blocks
+4: Logs and bushy backgrounds
+5: Logs and clouds and sky backgrounds
+6: Menu screen
+7: Skies and clouds
+8: Dirt
+9: Water + Grassy background
+10: Ice terrain
+11: Wooden tiles + night sky
+12: Sand and bones
+13: Woody background
+14: World 1 map elements
+15: Ice terrain 2
+16: Lava terrain
+17: Cheese terrain
+18: Moon terrain
+19: Star backgrounds
+20: Lava, backgrounds and paths
+21: Bridges
+22: Snow covered hills backgrounds
+23: Grass terrain 2
+24: Bonus stage tiles
+25: World 1 map elements (same as 14)
+26: World 3 map elements
+27: Cutscene graphics
+28: Cutscene graphics
+29: Cutscene graphics
+30: World 4 map elements
+31: Rocket graphics
+32: World 2 map elements
+33: Puzzle world map elements
+34: World 5 map elements
+35: General map elements
+36: World 6 map elements
+37: Game logo 1
+38: Game logo 2
+39: UFO graphics
+40: Big text 1
+41: Big text 2
+42: Big text 3
+43: Cutschene

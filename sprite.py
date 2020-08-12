@@ -1,5 +1,3 @@
-from rom import RomFile
-
 
 class Sprite:
     def __init__(self, width, height, chr_pointers, palette_index):
@@ -32,16 +30,16 @@ class Sprite:
         # print("0x%X" % old_22)
         # print("0x%X" % old_24)
         # print("0x%X" % val_624)
-        new_22 = (rom_file.banks[0][old_24 - RomFile.BANK_BASE + val_624] << 8) + rom_file.banks[0][old_22 - RomFile.BANK_BASE + val_624]
+        new_22 = (rom_file.banks[0][old_24 - rom_file.BANK_BASE + val_624] << 8) + rom_file.banks[0][old_22 - rom_file.BANK_BASE + val_624]
         # print("0x%X" % new_22)
-        val_5A4 = rom_file.banks[0][new_22 - RomFile.BANK_BASE + 1]
+        val_5A4 = rom_file.banks[0][new_22 - rom_file.BANK_BASE + 1]
         val_584 = val_614
         val_F45 = rom_file.banks[0][0xF45 + val_584]
         old_1A = (rom_file.banks[0][0xEF5 + val_584] << 8) + rom_file.banks[0][0xEE1 + val_584]
         old_1C = (rom_file.banks[0][0xF1D + val_584] << 8) + rom_file.banks[0][0xF09 + val_584]
-        new_1A = (rom_file.banks[0][old_1C - RomFile.BANK_BASE + val_5A4] << 8) + rom_file.banks[0][old_1A - RomFile.BANK_BASE + val_5A4]
+        new_1A = (rom_file.banks[0][old_1C - rom_file.BANK_BASE + val_5A4] << 8) + rom_file.banks[0][old_1A - rom_file.BANK_BASE + val_5A4]
 
-        spawn_pattern_flags = rom_file.banks[0][new_1A - RomFile.BANK_BASE]
+        spawn_pattern_flags = rom_file.banks[0][new_1A - rom_file.BANK_BASE]
         if sprite_index == 0x3A:
             sprite_width = 2
             sprite_height = 3
@@ -49,11 +47,11 @@ class Sprite:
             sprite_width = 2
             sprite_height = 4
         else:
-            sprite_width = rom_file.banks[0][new_1A - RomFile.BANK_BASE + 3]
-            sprite_height = rom_file.banks[0][new_1A - RomFile.BANK_BASE + 4]
+            sprite_width = rom_file.banks[0][new_1A - rom_file.BANK_BASE + 3]
+            sprite_height = rom_file.banks[0][new_1A - rom_file.BANK_BASE + 4]
 
         # Below here is stuff that goes into the RomFile object
-        sprite_bytes = rom_file.banks[0][new_1A - RomFile.BANK_BASE:new_1A - RomFile.BANK_BASE + 5 + (sprite_width * sprite_height) + 200]
+        sprite_bytes = rom_file.banks[0][new_1A - rom_file.BANK_BASE:new_1A - rom_file.BANK_BASE + 5 + (sprite_width * sprite_height) + 200]
         chr_pointers = []
 
         if sprite_index == 0x3A:

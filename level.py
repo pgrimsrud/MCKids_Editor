@@ -227,19 +227,5 @@ class Level:  # This class needs a lot of clean up.
         level.stage_sprite_index = rom_file.banks[1][0x2B1 + stage_num]
 
         level.decompress(stage_data)
-        spawn_count = len(level.spawn_points)
-
-        for i in range(0, spawn_count):
-            if rom_file.sprites[level.spawn_points[i].sprite_index] is None:
-                rom_file.sprites[level.spawn_points[i].sprite_index] = Sprite.load_sprite(level.spawn_points[i].sprite_index, rom_file)
-
-        for i in range(0, 4):
-            tile_set_compressed = rom_file.banks[rom_file.banks[1][0xE5 + stage_data[i + 2]]][
-                         (rom_file.banks[1][0xB9 + stage_data[i + 2]] << 8) + rom_file.banks[1][
-                             0x8D + stage_data[i + 2]] - RomFile.BANK_BASE:]
-            tile_set_raw = decompress(tile_set_compressed[1:], tile_set_compressed[0] >> 4, tile_set_compressed[0] & 0xF)
-
-            rom_file.tile_sets[level.tile_set_indices[i]] = TileSet()
-            rom_file.tile_sets[level.tile_set_indices[i]].from_decompressed_bytes(tile_set_raw)
 
         return level
