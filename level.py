@@ -73,31 +73,31 @@ class Level:  # This class needs a lot of clean up.
         output.append((best_offset << 4) + (best_length & 0x0F))
         return output + best_result
 
-    def get_tile(self, tile_index):
-        return RomFile.tile_sets[self.tile_set_indices[tile_index >> 6]].tiles[tile_index & 0x3F]
+    def get_tile(self, tile_index, rom_file):
+        return rom_file.tile_sets[self.tile_set_indices[tile_index >> 6]].tiles[tile_index & 0x3F]
 
-    def get_tile_at(self, index):
-        return self.get_tile(self.tile_map[index])
+    def get_tile_at(self, index, rom_file):
+        return self.get_tile(self.tile_map[index], rom_file)
 
     def add_spawn_point(self, sprite):
         self.spawn_points.append(sprite)
 
     @staticmethod
-    def load_level(stage_num, stage_data):
+    def load_level(stage_num, stage_data, rom_file):
         level = Level()
 
         palette_index = []
         palette_data = []
         level.attribute_lookup = [2, 2, 2, 2, 2, 2, 2, 2]
         for i in range(2, 6):
-            palette_bank = RomFile.banks[1][0xE5 + stage_data[i]]
-            palette_addr = (RomFile.banks[1][0xB9 + stage_data[i]] << 8) + RomFile.banks[1][0x8D + stage_data[i]]
+            palette_bank = rom_file.banks[1][0xE5 + stage_data[i]]
+            palette_addr = (rom_file.banks[1][0xB9 + stage_data[i]] << 8) + rom_file.banks[1][0x8D + stage_data[i]]
             # print("stage_data[%d] = 0x%x" % (i, stage_data[i]))
             # print(palette_bank)
             # print("0x%X" % palette_addr)
-            palette_data.append(decompress(RomFile.banks[palette_bank][palette_addr + 1 - RomFile.BANK_BASE:],
-                                                 RomFile.banks[palette_bank][palette_addr - RomFile.BANK_BASE] >> 4,
-                                                 RomFile.banks[palette_bank][palette_addr - RomFile.BANK_BASE] & 0xF))
+            palette_data.append(decompress(rom_file.banks[palette_bank][palette_addr + 1 - RomFile.BANK_BASE:],
+                                                 rom_file.banks[palette_bank][palette_addr - RomFile.BANK_BASE] >> 4,
+                                                 rom_file.banks[palette_bank][palette_addr - RomFile.BANK_BASE] & 0xF))
             # print(palette_data[i-2])
             for j in range(0, 4):
                 # print(palette_data[i-2][j])
@@ -122,58 +122,58 @@ class Level:  # This class needs a lot of clean up.
         if stage_num == 29:
             level.attribute_lookup = [2, 2, 2, 2, 2, 2, 2, 2]
             for i in range(0, 4):
-                level.attribute_lookup[RomFile.banks[0xD][0x41 + i]] = i
-                palette_index[i] = RomFile.banks[0xD][0x41 + i]
+                level.attribute_lookup[rom_file.banks[0xD][0x41 + i]] = i
+                palette_index[i] = rom_file.banks[0xD][0x41 + i]
         # the code has a special case to replace the palette indexes for stage index 48 & 50
         if stage_num == 48 or stage_num == 50:
             level.attribute_lookup = [2, 2, 2, 2, 2, 2, 2, 2]
             for i in range(0, 4):
-                level.attribute_lookup[RomFile.banks[0xD][0xA5 + i] & 7] = i
-                palette_index[i] = RomFile.banks[0xD][0xA5 + i]
+                level.attribute_lookup[rom_file.banks[0xD][0xA5 + i] & 7] = i
+                palette_index[i] = rom_file.banks[0xD][0xA5 + i]
         # the code has a special case to replace the palette indexes for stage index 70
         if stage_num == 70:
             level.attribute_lookup = [2, 2, 2, 2, 2, 2, 2, 2]
             for i in range(0, 4):
-                level.attribute_lookup[RomFile.banks[0xD][0x23A + i] & 7] = i
-                palette_index[i] = RomFile.banks[0xD][0x23A + i]
+                level.attribute_lookup[rom_file.banks[0xD][0x23A + i] & 7] = i
+                palette_index[i] = rom_file.banks[0xD][0x23A + i]
         # the code has a special case to replace the palette indexes for stage index 73
         if stage_num == 73:
             level.attribute_lookup = [2, 2, 2, 2, 2, 2, 2, 2]
             for i in range(0, 4):
-                level.attribute_lookup[RomFile.banks[0xD][0x22A + i] & 7] = i
-                palette_index[i] = RomFile.banks[0xD][0x22A + i]
+                level.attribute_lookup[rom_file.banks[0xD][0x22A + i] & 7] = i
+                palette_index[i] = rom_file.banks[0xD][0x22A + i]
         # the code has a special case to replace the palette indexes for stage index 76
         if stage_num == 76:
             level.attribute_lookup = [2, 2, 2, 2, 2, 2, 2, 2]
             for i in range(0, 4):
-                level.attribute_lookup[RomFile.banks[0xD][0x25A + i] & 7] = i
-                palette_index[i] = RomFile.banks[0xD][0x25A + i]
+                level.attribute_lookup[rom_file.banks[0xD][0x25A + i] & 7] = i
+                palette_index[i] = rom_file.banks[0xD][0x25A + i]
 
         # print(palette_index)
         # print(attribute_lookup)
 
         level.palette = []
-        palette_flags = RomFile.banks[1][0x254:]
+        palette_flags = rom_file.banks[1][0x254:]
         for i in range(0, 4):
             # the first (or 0) color for each group of 4 colors is always the stage background color
-            level.palette.append([colors[RomFile.banks[1][0x1F7 + stage_num]]])
+            level.palette.append([colors[rom_file.banks[1][0x1F7 + stage_num]]])
         # print(palette)
         for i in range(0, 4):
             for j in range(0, 3):
                 level.palette[i].append(
-                    colors[RomFile.banks[1][0x20 * j + ((palette_index[i] & 0xF) + ((palette_index[i] & 0xF0) >> 1))
+                    colors[rom_file.banks[1][0x20 * j + ((palette_index[i] & 0xF) + ((palette_index[i] & 0xF0) >> 1))
                                             + ((palette_flags[stage_num] & 1) << 3)
                                             + (((palette_flags[stage_num] & 4) >> 2) * 0x18)]])
 
-        chr_palette_index = [0, 1, RomFile.banks[1][0x30E + stage_num], RomFile.banks[1][0x36B + stage_num]]
-        RomFile.chr_palette = []
+        chr_palette_index = [0, 1, rom_file.banks[1][0x30E + stage_num], rom_file.banks[1][0x36B + stage_num]]
+        rom_file.chr_palette = []
         for i in range(0, 4):
             # the first (or 0) color for each group of 4 chr colors is always the alpha no matter what the value is
-            RomFile.chr_palette.append([(0, 0, 0, 0)])
+            rom_file.chr_palette.append([(0, 0, 0, 0)])
         # print(palette)
         for i in range(0, 4):
             for j in range(0, 3):
-                RomFile.chr_palette[i].append(colors[RomFile.banks[1][0x60 + 0xF * j + chr_palette_index[i]]])
+                rom_file.chr_palette[i].append(colors[rom_file.banks[1][0x60 + 0xF * j + chr_palette_index[i]]])
                 # + ((palette_index[i] & 0xF0) >> 1))
                 # + ((palette_flags[stage_num] & 1) << 3)
                 # + (((palette_flags[stage_num] & 4) >> 2) * 0x18)]])
@@ -224,23 +224,22 @@ class Level:  # This class needs a lot of clean up.
             for j in range(0, 64 * (i + 1) - len(level.tile_palette_map)):
                 level.tile_palette_map.append(0)
 
-        level.stage_sprite_index = RomFile.banks[1][0x2B1 + stage_num]
+        level.stage_sprite_index = rom_file.banks[1][0x2B1 + stage_num]
 
         level.decompress(stage_data)
         spawn_count = len(level.spawn_points)
 
         for i in range(0, spawn_count):
-            if RomFile.sprites[level.spawn_points[i].sprite_index] is None:
-                RomFile.sprites[level.spawn_points[i].sprite_index] = Sprite.load_sprite(
-                    level.spawn_points[i].sprite_index)
+            if rom_file.sprites[level.spawn_points[i].sprite_index] is None:
+                rom_file.sprites[level.spawn_points[i].sprite_index] = Sprite.load_sprite(level.spawn_points[i].sprite_index, rom_file)
 
         for i in range(0, 4):
-            tile_set_compressed = RomFile.banks[RomFile.banks[1][0xE5 + stage_data[i + 2]]][
-                         (RomFile.banks[1][0xB9 + stage_data[i + 2]] << 8) + RomFile.banks[1][
+            tile_set_compressed = rom_file.banks[rom_file.banks[1][0xE5 + stage_data[i + 2]]][
+                         (rom_file.banks[1][0xB9 + stage_data[i + 2]] << 8) + rom_file.banks[1][
                              0x8D + stage_data[i + 2]] - RomFile.BANK_BASE:]
             tile_set_raw = decompress(tile_set_compressed[1:], tile_set_compressed[0] >> 4, tile_set_compressed[0] & 0xF)
 
-            RomFile.tile_sets[level.tile_set_indices[i]] = TileSet()
-            RomFile.tile_sets[level.tile_set_indices[i]].from_decompressed_bytes(tile_set_raw)
+            rom_file.tile_sets[level.tile_set_indices[i]] = TileSet()
+            rom_file.tile_sets[level.tile_set_indices[i]].from_decompressed_bytes(tile_set_raw)
 
         return level

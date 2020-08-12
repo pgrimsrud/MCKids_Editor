@@ -2,6 +2,7 @@ import tkinter as tk
 from tkinter import *
 from tkinter import filedialog
 from PIL import Image, ImageDraw, ImageTk
+import pickle
 from rom import RomFile
 from level import Level
 from colors import rgba_to_rgb_palette
@@ -24,6 +25,8 @@ class Editor:
         self.ti = None
         self.stage_img = None
         self.overlay_img = None
+        self.rom_file = None
+        self.project = None
 
         self.__setup_menu()
 
@@ -62,15 +65,17 @@ class Editor:
         self.editor_canvas.bind('<Button-1>', self.canvas_clicked)
         self.editor_canvas.bind('<B1-Motion>', self.canvas_clicked)
 
-        self.load_stage(0)
-
     def __setup_menu(self):
         self.menu_bar = Menu(self.window)
         self.window.config(menu=self.menu_bar)
 
         file_menu = Menu(self.menu_bar, tearoff=0)
+        file_menu.add_command(label="Open Project", command=self.open_project_button_clicked)
+        file_menu.add_command(label="Save Project", command=self.save_project_button_clicked)
+        file_menu.add_command(label="Save Project As...", command=self.save_project_as_button_clicked)
         file_menu.add_command(label="Save level", command=self.save_level_button_clicked)
-        file_menu.add_command(label="Write ROM file", command=self.save_rom_button_clicked)
+        file_menu.add_command(label="Open ROM file", command=self.open_rom_button_clicked)
+        file_menu.add_command(label="Save ROM file", command=self.save_rom_button_clicked)
         file_menu.add_separator()
         file_menu.add_command(label="Export level", command=self.export_level_clicked)
         file_menu.add_command(label="Import level", command=self.import_level_clicked)
@@ -94,42 +99,72 @@ class Editor:
         view_menu.add_checkbutton(label="Show paths", onvalue=1, offvalue=0, variable=self.show_paths, command=self.draw_stage)
         self.menu_bar.add_cascade(label="View", menu=view_menu)
 
+    def open_project_button_clicked(self):
+        filename = filedialog.askopenfilename(defaultextension=".mcp", filetypes=[("M.C. Kids Project", "*.mcp"), ("All Files", "*")])
+        if len(filename):
+            self.project = filename
+            project_data = open(filename, "rb").read()
+            self.rom_file = pickle.loads(project_data)
+            self.load_stage(0)
+
+    def save_project_button_clicked(self):
+        if self.project != None:
+            #self.rom_file.save_project(self.project)
+            project_data = pickle.dumps(self.rom_file)
+            with open(self.project, "wb") as fp:
+                fp.write(bytearray(project_data))
+        else:
+            self.save_project_as_button_clicked()
+
+    def save_project_as_button_clicked(self):
+        if self.rom_file != None:
+            filename = filedialog.asksaveasfilename(defaultextension=".mcp", initialfile=".mcp", filetypes=[("M.C. Kids Project", "*.mcp"), ("All Files", "*")])
+            if len(filename):
+                self.project = filename
+                self.save_project_button_clicked()
+
+    def open_rom_button_clicked(self):
+        filename = filedialog.askopenfilename(defaultextension=".nes", filetypes=[("Nintendo Entertainment System ROM", "*.nes"), ("All Files", "*")])
+        if len(filename):
+            self.rom_file = RomFile(filename, 0)
+            self.load_stage(0)
+
     def resize_stage_clicked(self):
-        ResizeTool(self.window, RomFile.levels[self.current_stage], self.draw_stage)
+        ResizeTool(self.window, self.rom_file.levels[self.current_stage], self.draw_stage)
 
     def clear_stage_clicked(self):
-        for i in range(len(RomFile.levels[self.current_stage].tile_map)):
-            RomFile.levels[self.current_stage].tile_map[i] = self.tile_tools.selected_tile
+        for i in range(len(self.rom_file.levels[self.current_stage].tile_map)):
+            self.rom_file.levels[self.current_stage].tile_map[i] = self.tile_tools.selected_tile
         self.draw_stage()
 
     def export_level_clicked(self):
-        filename = filedialog.asksaveasfilename(defaultextension=".nes")
+        filename = filedialog.asksaveasfilename(defaultextension=".nes", initialfile=".nes", filetypes=[("Nintendo Entertainment System ROM", "*.nes"), ("All Files", "*")])
         if len(filename):
             with open(filename, "wb") as fp:
-                fp.write(bytearray(RomFile.levels[self.current_stage].compress()))
+                fp.write(bytearray(self.rom_file.levels[self.current_stage].compress()))
 
     def import_level_clicked(self):
-        filename = filedialog.askopenfilename(defaultextension=".nes")
+        filename = filedialog.askopenfilename(defaultextension=".nes", filetypes=[("Nintendo Entertainment System ROM", "*.nes"), ("All Files", "*")])
         if len(filename):
             with open(filename, "rb") as fp:
                 data = fp.read()
-                RomFile.levels[self.current_stage] = Level.load_level(self.current_stage, data)
+                self.rom_file.levels[self.current_stage] = Level.load_level(self.current_stage, data, self.rom_file)
                 self.draw_stage()
 
     def load_stage(self, stage_index):
         self.current_stage = stage_index
-        if RomFile.levels[self.current_stage] is None:
-            if RomFile.stage_pointers[self.current_stage]['bank'] < 0xD:
-                stage_data = RomFile.banks[RomFile.stage_pointers[self.current_stage]['bank']][
-                             RomFile.stage_pointers[self.current_stage]['offset'] - RomFile.BANK_BASE:]
+        if self.rom_file.levels[self.current_stage] is None:
+            if self.rom_file.stage_pointers[self.current_stage]['bank'] < 0xD:
+                stage_data = self.rom_file.banks[self.rom_file.stage_pointers[self.current_stage]['bank']][
+                             self.rom_file.stage_pointers[self.current_stage]['offset'] - RomFile.BANK_BASE:]
             else:
-                stage_data = RomFile.chr_banks[RomFile.stage_pointers[self.current_stage]['bank']][
-                             RomFile.stage_pointers[self.current_stage]['offset']:]
+                stage_data = self.rom_file.chr_banks[self.rom_file.stage_pointers[self.current_stage]['bank']][
+                             self.rom_file.stage_pointers[self.current_stage]['offset']:]
 
-            RomFile.levels[self.current_stage] = Level.load_level(self.current_stage, stage_data)
+            self.rom_file.levels[self.current_stage] = Level.load_level(self.current_stage, stage_data, self.rom_file)
 
-        self.tile_tools.update_tiles(stage_index)
-        self.sprite_tools.load_from_level(RomFile.levels[self.current_stage])
+        self.tile_tools.update_tiles(stage_index, self.rom_file)
+        self.sprite_tools.load_from_level(self.rom_file.levels[self.current_stage])
         self.draw_stage()
 
     def redraw(self, box):
@@ -138,10 +173,10 @@ class Editor:
         self.editor_canvas.create_image(0, 0, anchor=NW, image=self.ti, tags="img")
 
     def draw_tile(self, x, y):
-        level = RomFile.levels[self.current_stage]
+        level = self.rom_file.levels[self.current_stage]
         i = y * level.width + x
         p = rgba_to_rgb_palette(level.palette[level.attribute_lookup[level.tile_palette_map[level.tile_map[i]]]])
-        level.get_tile_at(i).draw(self.stage_img, x * 32, y * 32, p, level, int(level.tile_map[i] / 64))
+        level.get_tile_at(i, self.rom_file).draw(self.stage_img, x * 32, y * 32, p, level, int(level.tile_map[i] / 64), self.rom_file)
         draw_context = ImageDraw.Draw(self.overlay_img)
         self.__clear_tile(draw_context, x, y)
 
@@ -160,19 +195,19 @@ class Editor:
         img.line([(x * 32, y * 32), (x * 32, y * 32 + 32)], fill=(255, 255, 255, 100))
 
     def __draw_grid(self, img):
-        level = RomFile.levels[self.current_stage]
+        level = self.rom_file.levels[self.current_stage]
         for x in range(1, level.width):
             img.line([(x * 32, 0), (x * 32, level.height * 32)], fill=(255, 255, 255, 100))
         for y in range(1, level.height):
             img.line([(0, y * 32), (level.width * 32, y * 32)], fill=(255, 255, 255, 100))
 
     def __draw_solids(self, img):
-        level = RomFile.levels[self.current_stage]
+        level = self.rom_file.levels[self.current_stage]
         for i in range(level.width * level.height):
             self.__draw_tile_solids(img, i, level)
 
     def __draw_tile_solids(self, img, index, level):
-        tile_type = level.get_tile_at(index).tile_type
+        tile_type = level.get_tile_at(index, self.rom_file).tile_type
         x = (index % level.width) * 16 * 2
         y = int(index / level.width) * 16 * 2
         if tile_type in Editor.SOLID_TYPES:
@@ -196,12 +231,12 @@ class Editor:
             img.polygon([(x, y + 16), (x + 32, y + 32), (x, y + 32)], Editor.SOLID_COLOR)
 
     def __draw_paths(self, img):
-        level = RomFile.levels[self.current_stage]
+        level = self.rom_file.levels[self.current_stage]
         for i in range(level.width * level.height):
             self.__draw_tile_paths(img, i, level)
 
     def __draw_tile_paths(self, img, index, level):
-        tile_type = level.get_tile_at(index).tile_type
+        tile_type = level.get_tile_at(index, self.rom_file).tile_type
         x = (index % level.width) * 16 * 2
         y = int(index / level.width) * 16 * 2
         if tile_type == 0x70:
@@ -233,17 +268,17 @@ class Editor:
             img.line([(x + 16, y), (x + 16, y + 32)], fill=(0, 255, 0, 200), width=4)
 
     def draw_sprites(self):
-        level = RomFile.levels[self.current_stage]
+        level = self.rom_file.levels[self.current_stage]
 
         for i in range(0, len(level.spawn_points)):
-            sprite = RomFile.sprites[level.spawn_points[i].sprite_index]
+            sprite = self.rom_file.sprites[level.spawn_points[i].sprite_index]
             for j in range(sprite.width * sprite.height):
                 x = level.spawn_points[i].x * 16 * 2 + (j % sprite.width) * 8 * 2
                 y = level.spawn_points[i].y * 16 * 2 + int(j / sprite.width) * 8 * 2 - ((sprite.height - 2) * 16)
-                RomFile.get_sprite_chr(sprite.chr_pointers[j], sprite.palette_index, level).draw(self.stage_img, x, y, 0)
+                self.rom_file.get_sprite_chr(sprite.chr_pointers[j], sprite.palette_index, level).draw(self.stage_img, x, y, 0)
 
     def draw_stage(self):  # DRAW THE STAGE:
-        level = RomFile.levels[self.current_stage]
+        level = self.rom_file.levels[self.current_stage]
 
         # use the decompressed tiles from the stage, the tile map, and the pattern table to create an image of the stage
         self.stage_img = Image.new('RGBA', (level.width * 16 * 2, level.height * 16 * 2))
@@ -254,7 +289,7 @@ class Editor:
             x = (i % level.width) * 16 * 2
             y = int(i / level.width) * 16 * 2
             p = rgba_to_rgb_palette(level.palette[level.attribute_lookup[level.tile_palette_map[level.tile_map[i]]]])
-            level.get_tile_at(i).draw(self.stage_img, x, y, p, level, int(level.tile_map[i] / 64))
+            level.get_tile_at(i, self.rom_file).draw(self.stage_img, x, y, p, level, int(level.tile_map[i] / 64), self.rom_file)
 
         if self.show_solids.get() == 1:
             self.__draw_solids(overlay_draw)
@@ -279,28 +314,29 @@ class Editor:
         self.load_stage(self.editor_canvas, self.current_stage)
 
     def update_info_label(self, event):
-        level = RomFile.levels[self.current_stage]
-        canvas = event.widget
-        x = (int)(canvas.canvasx(event.x) / 32)
-        y = (int)(canvas.canvasy(event.y) / 32)
-        index = level.width * y + x
-        if len(level.tile_map) > index:
-            type = level.get_tile_at(index).tile_type
-            tile_set_index = level.tile_map[index]
-            self.info_var.set(f'Tile type: 0x{format(type, "02x")}, ' +
-                         f' Tile set index: 0x{format(tile_set_index, "02x")},' +
-                         f' Data index: 0x{format(index, "04x")}, ' +
-                         f' X: {x}, Y: {y}')
-        else:
-            self.info_var.set(f'Out of range: {index}')
+        if self.rom_file != None:
+            level = self.rom_file.levels[self.current_stage]
+            canvas = event.widget
+            x = (int)(canvas.canvasx(event.x) / 32)
+            y = (int)(canvas.canvasy(event.y) / 32)
+            index = level.width * y + x
+            if len(level.tile_map) > index:
+                type = level.get_tile_at(index, self.rom_file).tile_type
+                tile_set_index = level.tile_map[index]
+                self.info_var.set(f'Tile type: 0x{format(type, "02x")}, ' +
+                             f' Tile set index: 0x{format(tile_set_index, "02x")},' +
+                             f' Data index: 0x{format(index, "04x")}, ' +
+                             f' X: {x}, Y: {y}')
+            else:
+                self.info_var.set(f'Out of range: {index}')
 
     def save_level_button_clicked(self):
-        RomFile.save_level(self.current_stage)
+        self.rom_file.save_level(self.current_stage)
 
     def save_rom_button_clicked(self):
-        filename = filedialog.asksaveasfilename(defaultextension=".nes")
+        filename = filedialog.asksaveasfilename(defaultextension=".nes", initialfile=".nes", filetypes=[("Nintendo Entertainment System ROM", "*.nes"), ("All Files", "*")])
         if len(filename) > 0:
-            RomFile.write_rom(filename)
+            self.rom_file.write_rom(filename)
 
     def canvas_clicked(self, event):
         canvas = event.widget
@@ -311,7 +347,7 @@ class Editor:
     def paint_tile(self, canvas, x, y):
         # paint_with_index = 0x5B  # throwable block in stage 1-1
         paint_with_index = self.tile_tools.selected_tile
-        level = RomFile.levels[self.current_stage]
+        level = self.rom_file.levels[self.current_stage]
         index = level.width * y + x
         if level.tile_map[index] != paint_with_index:
             level.tile_map[index] = paint_with_index

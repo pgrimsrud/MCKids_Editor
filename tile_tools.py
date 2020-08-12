@@ -25,14 +25,14 @@ class TileTools:
         self.xscrollbar.config(command=self.canvas.xview)
         self.yscrollbar.config(command=self.canvas.yview)
 
-    def update_tiles(self, current_level):
+    def update_tiles(self, current_level, rom_file):
         self.current_level = current_level
         self.__empty_tile_palette()
-        level = RomFile.levels[current_level]
+        level = rom_file.levels[current_level]
         for tile_index in range(256):
             button_img = Image.new('RGBA', (32, 32))
             p = rgba_to_rgb_palette(level.palette[level.attribute_lookup[level.tile_palette_map[tile_index]]])
-            level.get_tile(tile_index).draw(button_img, 0, 0, p, level, int(tile_index / 64))
+            level.get_tile(tile_index, rom_file).draw(button_img, 0, 0, p, level, int(tile_index / 64), rom_file)
             photo = ImageTk.PhotoImage(button_img)
             self.button_photos.append(photo)
             if self.selected_tile == tile_index:
