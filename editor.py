@@ -11,7 +11,7 @@ from resize_tool import ResizeTool
 from sprite_tools import SpriteTools
 from level_properties import LevelProperties
 from sprite import Sprite
-
+import webbrowser
 
 class Editor:
     SOLID_TYPES = [0x08, 0x01, 0x1B, 0x20, 0x25]
@@ -104,6 +104,38 @@ class Editor:
         view_menu.add_checkbutton(label="Show solids", onvalue=1, offvalue=0, variable=self.show_solids, command=self.draw_stage)
         view_menu.add_checkbutton(label="Show paths", onvalue=1, offvalue=0, variable=self.show_paths, command=self.draw_stage)
         self.menu_bar.add_cascade(label="View", menu=view_menu)
+
+        help_menu = Menu(self.menu_bar, tearoff=0)
+        help_menu.add_command(label="About", command=self.about_button_clicked)
+        self.menu_bar.add_cascade(label="Help", menu=help_menu)
+
+    def link_clicked(self, event):
+        webbrowser.open_new(event.widget.cget("text"))
+
+    def about_button_clicked(self):
+        about_window = tk.Tk()
+        about_window.title("About")
+        #about_window.geometry("512x480")
+        label1 = Label(about_window, borderwidth=8, text="M.C. Kids Editor")
+        label2 = Label(about_window, borderwidth=8, text="Version X.X")
+        label3 = Label(about_window, borderwidth=8, text="Written by:")
+        label4 = Label(about_window, borderwidth=8, text="Phillip Grimsrud", justify=LEFT)
+        label5 = Label(about_window, borderwidth=8, text="http://twitch.tv/link_7777", justify=LEFT, fg="blue", cursor="hand2")
+        label6 = Label(about_window, borderwidth=8, text="Scha")
+        label7 = Label(about_window, borderwidth=8, text="http://twitch.tv/schaaa", justify=LEFT, fg="blue", cursor="hand2")
+        label8 = Label(about_window, borderwidth=8, text="https://github.com/pgrimsrud/MCKids_Editor", justify=LEFT, fg="blue", cursor="hand2")
+        label1.grid(row=0, column=0, columnspan=2)
+        label2.grid(row=1, column=0, columnspan=2)
+        label3.grid(row=2, column=0, columnspan=2)
+        label4.grid(row=3, column=0, columnspan=1)
+        label5.grid(row=3, column=1, columnspan=1)
+        label6.grid(row=4, column=0, columnspan=1)
+        label7.grid(row=4, column=1, columnspan=1)
+        label8.grid(row=5, column=0, columnspan=2)
+        label5.bind('<Button-1>', self.link_clicked)
+        label7.bind('<Button-1>', self.link_clicked)
+        label8.bind('<Button-1>', self.link_clicked)
+        about_window.mainloop()
 
     def open_project_button_clicked(self):
         filename = filedialog.askopenfilename(defaultextension=".mcp", filetypes=[("M.C. Kids Project", "*.mcp"), ("All Files", "*")])
