@@ -171,7 +171,7 @@ Sprite IDs:
 
 
 tile sets:
-1: Baiscs, Arches, blocks, spinners, springs, goals etc.
+1: Basics, Arches, blocks, spinners, springs, goals etc.
 2: Hilly background
 3: Grass blocks
 4: Logs and bushy backgrounds
@@ -213,4 +213,4 @@ tile sets:
 40: Big text 1
 41: Big text 2
 42: Big text 3
-43: Cutschene
+43: Cut scene

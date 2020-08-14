@@ -1,9 +1,7 @@
-from compression import compress, decompress
+from fast_compression import fast_decompress, fast_compress, fast_compression_length
 from spawnpoint import SpawnPoint
 from rom import RomFile
 from colors import colors
-from tileset import TileSet
-from sprite import Sprite
 
 
 class Level:  # This class needs a lot of clean up.
@@ -23,7 +21,7 @@ class Level:  # This class needs a lot of clean up.
 
         self.tile_set_indices = compressed_data[2:6]
 
-        stage_data = decompress(compressed_data[7:], compressed_data[6] >> 4, compressed_data[6] & 0xF)
+        stage_data = bytearray(fast_decompress(compressed_data[7:], compressed_data[6] >> 4, compressed_data[6] & 0xF))
 
         spawn_count = stage_data[0]
         stage_spawn_info = stage_data[1:spawn_count * 4 + 1]
@@ -62,7 +60,7 @@ class Level:  # This class needs a lot of clean up.
         best_result = []
         for offset in range(8, 13):
             for length in range(4, 10):
-                result = compress(stage_data, offset, length)
+                result = fast_compress(bytearray(stage_data), offset, length)
                 print(f'Compressing {offset}:{length} = {len(result)} bytes')
                 if len(result) < best_size:
                     best_size = len(result)
@@ -71,7 +69,7 @@ class Level:  # This class needs a lot of clean up.
                     best_result = result
 
         output.append((best_offset << 4) + (best_length & 0x0F))
-        return output + best_result
+        return bytearray(output) + bytearray(best_result)
 
     def get_tile(self, tile_index, rom_file):
         return rom_file.tile_sets[self.tile_set_indices[tile_index >> 6]].tiles[tile_index & 0x3F]
@@ -95,7 +93,7 @@ class Level:  # This class needs a lot of clean up.
             # print("stage_data[%d] = 0x%x" % (i, stage_data[i]))
             # print(palette_bank)
             # print("0x%X" % palette_addr)
-            palette_data.append(decompress(rom_file.banks[palette_bank][palette_addr + 1 - RomFile.BANK_BASE:],
+            palette_data.append(fast_decompress(rom_file.banks[palette_bank][palette_addr + 1 - RomFile.BANK_BASE:],
                                                  rom_file.banks[palette_bank][palette_addr - RomFile.BANK_BASE] >> 4,
                                                  rom_file.banks[palette_bank][palette_addr - RomFile.BANK_BASE] & 0xF))
             # print(palette_data[i-2])

@@ -6,18 +6,21 @@ class LevelProperties:
         self.editor = editor
         self.level_num = 0
         self.level_name = tk.StringVar()
+        self.level_index = tk.StringVar()
         self.level_start_x = tk.StringVar()
         self.level_start_y = tk.StringVar()
 
         frame = tk.Frame(parent)
 
-        tk.Label(frame, text="Level name:").grid(row=0)
-        tk.Entry(frame, textvariable=self.level_name).grid(row=0, column=1, columnspan=2)
+        tk.Label(frame, text="Level index:").grid(row=0)
+        tk.Label(frame, textvariable=self.level_index).grid(row=0, column=1)
+        tk.Label(frame, text="Level name:").grid(row=1)
+        tk.Entry(frame, textvariable=self.level_name).grid(row=1, column=1, columnspan=3)
 
-        tk.Label(frame, text="Start position:").grid(row=1)
-        tk.Entry(frame, textvariable=self.level_start_x, width=5).grid(row=1, column=2)
-        tk.Entry(frame, textvariable=self.level_start_y, width=5).grid(row=1, column=3)
-        tk.Button(frame, text="Place", command=self.place_start_clicked).grid(row=1, column=4)
+        tk.Label(frame, text="Start position:").grid(row=2)
+        tk.Entry(frame, textvariable=self.level_start_x, width=5).grid(row=2, column=1)
+        tk.Entry(frame, textvariable=self.level_start_y, width=5).grid(row=2, column=2)
+        tk.Button(frame, text="Place", command=self.place_start_clicked).grid(row=2, column=3)
 
         frame.pack()
 
@@ -26,8 +29,8 @@ class LevelProperties:
         self.load_data()
 
     def load_data(self):
-        # level = self.editor.rom_file.levels[self.level_num]
         level_index = self.editor.rom_file.level_index_lookup[self.level_num]
+        self.level_index.set(self.level_num)
         if level_index == -1:
             self.level_name.set("")
         else:

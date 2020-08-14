@@ -1,4 +1,5 @@
 import tkinter as tk
+from tkinter import messagebox
 from tkinter import *
 from tkinter import filedialog
 from PIL import Image, ImageDraw, ImageTk
@@ -10,7 +11,6 @@ from tile_tools import TileTools
 from resize_tool import ResizeTool
 from sprite_tools import SpriteTools
 from level_properties import LevelProperties
-from sprite import Sprite
 import webbrowser
 
 class Editor:
@@ -94,10 +94,10 @@ class Editor:
         edit_menu.add_command(label="Clear level", command=self.clear_stage_clicked)
         self.menu_bar.add_cascade(label="Edit", menu=edit_menu)
 
-        level_menu = Menu(self.menu_bar, tearoff=0)
+        self.level_menu = Menu(self.menu_bar, tearoff=0)
         for i in range(0x5D):
-            level_menu.add_command(label=f'Level {i}', command=lambda index=i: self.load_stage(index))
-        self.menu_bar.add_cascade(label="Level", menu=level_menu)
+            self.level_menu.add_command(label=f'Level {i}', command=lambda index=i: self.load_stage(index))
+        self.menu_bar.add_cascade(label="Level", menu=self.level_menu)
 
         view_menu = Menu(self.menu_bar, tearoff=0)
         view_menu.add_checkbutton(label="Show grid", onvalue=1, offvalue=0, variable=self.show_grid, command=self.draw_stage)
@@ -113,15 +113,16 @@ class Editor:
         webbrowser.open_new(event.widget.cget("text"))
 
     def about_button_clicked(self):
-        about_window = tk.Tk()
+        about_window = tk.Toplevel(self.window)
         about_window.title("About")
+        about_window.resizable(False, False)
         #about_window.geometry("512x480")
         label1 = Label(about_window, borderwidth=8, text="M.C. Kids Editor")
         label2 = Label(about_window, borderwidth=8, text="Version X.X")
         label3 = Label(about_window, borderwidth=8, text="Written by:")
         label4 = Label(about_window, borderwidth=8, text="Phillip Grimsrud", justify=LEFT)
         label5 = Label(about_window, borderwidth=8, text="http://twitch.tv/link_7777", justify=LEFT, fg="blue", cursor="hand2")
-        label6 = Label(about_window, borderwidth=8, text="Scha")
+        label6 = Label(about_window, borderwidth=8, text="Andreas Bernhardsen")
         label7 = Label(about_window, borderwidth=8, text="http://twitch.tv/schaaa", justify=LEFT, fg="blue", cursor="hand2")
         label8 = Label(about_window, borderwidth=8, text="https://github.com/pgrimsrud/MCKids_Editor", justify=LEFT, fg="blue", cursor="hand2")
         label1.grid(row=0, column=0, columnspan=2)
@@ -165,7 +166,17 @@ class Editor:
         filename = filedialog.askopenfilename(defaultextension=".nes", filetypes=[("Nintendo Entertainment System ROM", "*.nes"), ("All Files", "*")])
         if len(filename):
             self.rom_file = RomFile(filename, 0)
+            self.update_level_names()
             self.load_stage(0)
+
+    def update_level_names(self):
+        item_count = self.level_menu.index("end")
+        for i in range(item_count + 1):
+            level_index = self.rom_file.level_index_lookup[i]
+            if i in [7, 92]:
+                self.level_menu.entryconfigure(i, state="disabled")
+            if level_index != -1:
+                self.level_menu.entryconfigure(i, label=f'Level {i}: {self.rom_file.level_names[level_index]}')
 
     def resize_stage_clicked(self):
         ResizeTool(self.window, self.rom_file.levels[self.current_stage], self.draw_stage)
@@ -387,7 +398,8 @@ class Editor:
     def save_rom_button_clicked(self):
         filename = filedialog.asksaveasfilename(defaultextension=".nes", initialfile=".nes", filetypes=[("Nintendo Entertainment System ROM", "*.nes"), ("All Files", "*")])
         if len(filename) > 0:
-            self.rom_file.write_rom(filename)
+            if self.rom_file.write_rom(filename) == RomFile.ERROR_COULD_NOT_FIT_ALL_STAGES:
+                messagebox.showerror("Error", "Could not fit all stages!")
 
     def set_next_click_callback(self, callback):
         self.next_click_callback = callback
