@@ -189,6 +189,9 @@ class Editor:
                 self.rom_file.levels[self.current_stage] = Level.load_level(self.current_stage, data, self.rom_file)
                 self.draw_stage()
 
+    def deselect(self):
+        self.tile_tools.select_tile(None)
+
     def load_stage(self, stage_index):
         self.current_stage = stage_index
         if self.rom_file.levels[self.current_stage] is None:
@@ -397,16 +400,16 @@ class Editor:
             self.paint_tile(canvas, x, y)
         else:
             self.next_click_callback(x, y)
-            self.next_click_callback = None
 
     def paint_tile(self, canvas, x, y):
         # paint_with_index = 0x5B  # throwable block in stage 1-1
-        paint_with_index = self.tile_tools.selected_tile
-        level = self.rom_file.levels[self.current_stage]
-        index = level.width * y + x
-        if level.tile_map[index] != paint_with_index:
-            level.tile_map[index] = paint_with_index
-            self.draw_tile(x, y)
-            self.draw_sprites()
-            self.redraw((x * 32, y * 32, x * 32 + 32, y * 32 + 32))
-            # self.draw_stage()
+        if self.tile_tools.selected_tile != None:
+            paint_with_index = self.tile_tools.selected_tile
+            level = self.rom_file.levels[self.current_stage]
+            index = level.width * y + x
+            if level.tile_map[index] != paint_with_index:
+                level.tile_map[index] = paint_with_index
+                self.draw_tile(x, y)
+                self.draw_sprites()
+                self.redraw((x * 32, y * 32, x * 32 + 32, y * 32 + 32))
+                # self.draw_stage()

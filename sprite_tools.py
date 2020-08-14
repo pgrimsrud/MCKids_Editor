@@ -30,8 +30,6 @@ class SpriteTools:
         tk.OptionMenu(self.frame, self.selected_spawn_id, *sprite_options).grid(row=3, column=3)
 
         sprite_buttons = tk.Frame(self.frame)
-        tk.Button(sprite_buttons, text="Place", command=self.place_button_clicked).pack(side=tk.LEFT, padx=10)
-        tk.Button(sprite_buttons, text="Save", command=self.save_button_clicked).pack(side=tk.LEFT, padx=10)
         tk.Button(sprite_buttons, text="Delete", command=self.delete_button_clicked).pack(side=tk.LEFT, padx=10)
         tk.Button(sprite_buttons, text="Add", command=self.add_button_clicked).pack(side=tk.LEFT, padx=10)
         sprite_buttons.grid(row=4, column=2, columnspan=2)
@@ -59,11 +57,14 @@ class SpriteTools:
         self.sprite_list.delete(0, tk.END)
         for i in range(len(level.spawn_points)):
             self.sprite_list.insert(i, f'{level.spawn_points[i].x:03d}x{level.spawn_points[i].y:03d}: {sprite_names[level.spawn_points[i].sprite_index]}')
+        self.sprite_list.select_set(self.index)
 
     def edit_sprite(self, event):
+        self.editor.deselect()
         tup = self.sprite_list.curselection()
         if len(tup) == 1:
             self.index = tup[0]
+            self.editor.set_next_click_callback(self.place_sprite)
             self.selected_spawn_x.set(self.level.spawn_points[self.index].x)
             self.selected_spawn_y.set(self.level.spawn_points[self.index].y)
             self.selected_spawn_id.set(sprite_names[self.level.spawn_points[self.index].sprite_index])
@@ -71,25 +72,18 @@ class SpriteTools:
         else:
             self.index = -1
 
-    def place_button_clicked(self):
-        self.editor.set_next_click_callback(self.place_sprite)
-        pass
-
     def place_sprite(self, x, y):
         if self.index >= 0:
             self.level.spawn_points[self.index].x = x
             self.level.spawn_points[self.index].y = y
-            self.load_from_level(self.level)
-            self.sprite_list.select_set(len(self.level.spawn_points) - 1)
-            self.edit_sprite(None)
+            self.sprite_list.select_set(self.index)
+            self.save_sprite()
+            self.editor.draw_stage()
 
-    def save_button_clicked(self):
+    def save_sprite(self):
         if self.index >= 0:
-            self.level.spawn_points[self.index].x = int(self.selected_spawn_x.get())
-            self.level.spawn_points[self.index].y = int(self.selected_spawn_y.get())
             self.level.spawn_points[self.index].sprite_index = self.__get_sprite_index(self.selected_spawn_id.get())
             self.load_from_level(self.level)
-            self.editor.draw_stage()
 
     def delete_button_clicked(self):
         if self.index >= 0:

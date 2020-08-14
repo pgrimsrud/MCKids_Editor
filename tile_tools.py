@@ -7,7 +7,7 @@ from colors import rgba_to_rgb_palette
 
 class TileTools:
     def __init__(self, parent, editor):
-        self.selected_tile = 0x00
+        self.selected_tile = None
 
         self.tile_set_indexes = [tk.StringVar(), tk.StringVar(), tk.StringVar(), tk.StringVar()]
 
@@ -65,7 +65,8 @@ class TileTools:
 
     def select_tile(self, tile_index):
         self.selected_tile = tile_index
-        # self.update_tiles(self.current_level)
+        if self.selected_tile != None:
+            self.editor.next_click_callback = None
         counter = 0
         for widget in self.frame.winfo_children():
             if counter == tile_index:
