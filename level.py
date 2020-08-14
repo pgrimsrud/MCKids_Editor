@@ -41,6 +41,11 @@ class Level:  # This class needs a lot of clean up.
                   self.tile_set_indices[2],
                   self.tile_set_indices[3]]
 
+        def get_x(element):
+            return element.x
+
+        self.spawn_points.sort(key=get_x)
+
         spawn_count = len(self.spawn_points)
         stage_data = [spawn_count]
         for i in range(spawn_count):

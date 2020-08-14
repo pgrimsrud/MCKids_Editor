@@ -292,6 +292,14 @@ class Editor:
         tile_type = level.get_tile_at(index, self.rom_file).tile_type
         x = (index % level.width) * 16 * 2
         y = int(index / level.width) * 16 * 2
+        if tile_type == 0x61:
+            img.polygon((x+16, y+8, x+32, y+16, x+16, y+24), fill=(0, 255, 0, 200))
+        if tile_type == 0x62:
+            img.polygon((x+16, y+8, x, y+16, x+16, y+24), fill=(0, 255, 0, 200))
+        if tile_type == 0x63:
+            img.polygon((x+8, y+16, x+16, y+32, x+24, y+16), fill=(0, 255, 0, 200))
+        if tile_type == 0x64:
+            img.polygon((x+8, y+16, x+16, y, x+24, y+16), fill=(0, 255, 0, 200))
         if tile_type == 0x70:
             img.line([(x, y + 32), (x + 16, y + 16), (x + 32, y + 16)], fill=(0, 255, 0, 200), width=4)
         if tile_type == 0x71:
