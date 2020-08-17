@@ -25,8 +25,6 @@ class RomFile:
         self.level_index_lookup = [-1] * 0x5D
 
         self.level_names = [" "] * 56
-        self.start_pos_x = [0] * 0x5D
-        self.start_pos_y = [0] * 0x5D
 
         self.ines_header = []
         self.rom = []
@@ -46,13 +44,12 @@ class RomFile:
         self.chr_map = self.banks[1][0x111:]
         self.__read_level_names()
         self.__load_level_index_lookup()
-        self.__load_starting_positions()
 
         self.load_tile_sets()
-        self.load_stage_pointers()
+        self.load_stage_pointers_and_properties()
 
 
-    def load_stage_pointers(self):
+    def load_stage_pointers_and_properties(self):
         # stage data pointers are in bank 1. The data consists of 3 arrays of 0x5D (93) elements
         # The three arrays are lower address byte, upper address byte, bank number
         # note that the address in the table includes the base bank offset of 0xA000 unless it is fixed bank 0xE or 0xF
@@ -83,7 +80,6 @@ class RomFile:
                 'offset': offset,
                 'size': size
             })
-
 
     def resuffle_data(self):
         # Containers are sorted by size
@@ -179,7 +175,7 @@ class RomFile:
             self.rom[0x2000 + RomFile.LEVEL_OFFSET_LO_ARRAY_OFFSET + stage['stage_id']] = offset_lo
 
         self.load_banks_from_rom()
-        self.load_stage_pointers()
+        self.load_stage_pointers_and_properties()
         # We could also clear all levels (except the current one)
         # That would cause the editor to not re-compress unless the levels where loaded again
 
@@ -205,15 +201,15 @@ class RomFile:
         for i in range(56):
             self.level_index_lookup[self.banks[1][0x077F + i]] = i
 
-    def __load_starting_positions(self):
+    def __write_level_properties(self):
         for i in range(0x5D):
-            self.start_pos_x[i] = self.banks[1][0x13D + i]
-            self.start_pos_y[i] = self.banks[1][0x19A + i]
-
-    def __write_start_positions(self):
-        for i in range(0x5D):
-            self.rom[0x2000 + 0x13D + i] = self.start_pos_x[i]
-            self.rom[0x2000 + 0x19A + i] = self.start_pos_y[i]
+            if self.levels[i] is not None:
+                self.rom[0x2000 + 0x013D + i] = self.levels[i].start_x
+                self.rom[0x2000 + 0x019A + i] = self.levels[i].start_y
+                self.rom[0x2000 + 0x0254 + i] = self.levels[i].flags1
+                self.rom[0x2000 + 0x07B8 + i] = self.levels[i].flags2
+                self.rom[0x2000 + 0x02B1 + i] = self.levels[i].stage_sprite_index
+                self.rom[0x2000 + 0x01F7 + i] = self.levels[i].bg_color
 
     def load_tile_set_patterns(self, tile_set_index):
         self.tile_patterns[tile_set_index] = []
@@ -280,7 +276,7 @@ class RomFile:
         result = self.resuffle_data()
         if result != RomFile.ERROR_NONE:
             return result
-        self.__write_start_positions()
+        self.__write_level_properties()
         with open(filename, "wb") as fp:
             fp.write(bytearray(self.ines_header) + bytearray(self.rom))
 

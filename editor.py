@@ -344,8 +344,9 @@ class Editor:
                 stage_draw.rectangle(((x, y), (x + sprite.width * 16, y + sprite.height * 16)), outline="red", width=2)
 
     def draw_kid(self):
-        x = self.rom_file.start_pos_x[self.current_stage] * 32
-        y = self.rom_file.start_pos_y[self.current_stage] * 32 - 64
+        level = self.rom_file.levels[self.current_stage]
+        x = level.start_x * 32
+        y = level.start_y * 32 - 64
         stage_draw = ImageDraw.Draw(self.stage_img)
         stage_draw.rectangle(((x, y), (x + 32, y + 64)), outline="green", width=2)
 

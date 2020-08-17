@@ -13,7 +13,18 @@ class Level:  # This class needs a lot of clean up.
         self.spawn_points = []
         self.sprites = []
         self.palette = None
+
+        # Stuff stored outside the level data block, but it belongs to the level:
         self.stage_sprite_index = 0
+        self.start_x = 0
+        self.start_y = 0
+        self.flags1 = 0
+        self.flags2 = 0
+
+        self.bg_color = 0
+        self.card_id_1 = 0xFF
+        self.card_id_2 = 0xFF
+        self.name = ""
 
     def decompress(self, compressed_data):
         self.width = compressed_data[0]
@@ -63,8 +74,8 @@ class Level:  # This class needs a lot of clean up.
         best_offset = 0
         best_length = 0
         best_result = []
-        for offset in range(8, 13):
-            for length in range(4, 10):
+        for offset in range(6, 14):
+            for length in range(4, 11):
                 result = fast_compress(bytearray(stage_data), offset, length)
                 print(f'Compressing {offset}:{length} = {len(result)} bytes')
                 if len(result) < best_size:
@@ -228,7 +239,20 @@ class Level:  # This class needs a lot of clean up.
                 level.tile_palette_map.append(0)
 
         level.stage_sprite_index = rom_file.banks[1][0x2B1 + stage_num]
+        level.start_x = rom_file.banks[1][0x013D + stage_num]
+        level.start_y = rom_file.banks[1][0x019A + stage_num]
+        level.bg_color = rom_file.banks[1][0x01F7 + stage_num]
+        level.flags1 = rom_file.banks[1][0x0254 + stage_num]
+        level.flags2 = rom_file.banks[1][0x07B8 + stage_num]  # Should this be indexed by stage_index?
+        level.card_1_ids = rom_file.banks[1][0x0457 + stage_num]
+        level.card_2_ids = rom_file.banks[1][0x04B4 + stage_num]
 
         level.decompress(stage_data)
 
         return level
+
+    def set_background_color(self, color):
+        self.bg_color = color
+        for i in range(4):
+            self.palette[i][0] = colors[color]
+
