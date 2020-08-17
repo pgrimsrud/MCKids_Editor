@@ -70,6 +70,7 @@ class Editor:
         self.editor_canvas.bind('<Motion>', self.update_info_label)
         self.editor_canvas.bind('<Button-1>', self.canvas_clicked)
         self.editor_canvas.bind('<B1-Motion>', self.canvas_clicked)
+        self.editor_canvas.bind('<Button-3>', self.canvas_right_clicked)
 
     def __setup_menu(self):
         self.menu_bar = Menu(self.window)
@@ -421,6 +422,14 @@ class Editor:
             self.paint_tile(canvas, x, y)
         else:
             self.next_click_callback(x, y)
+
+    def canvas_right_clicked(self, event):
+        canvas = event.widget
+        x = int(canvas.canvasx(event.x) / 32)
+        y = int(canvas.canvasy(event.y) / 32)
+        level = self.rom_file.levels[self.current_stage]
+        i = y * level.width + x
+        self.tile_tools.select_tile(level.tile_map[i])
 
     def paint_tile(self, canvas, x, y):
         # paint_with_index = 0x5B  # throwable block in stage 1-1
