@@ -207,7 +207,8 @@ class RomFile:
                 self.rom[0x2000 + 0x013D + i] = self.levels[i].start_x
                 self.rom[0x2000 + 0x019A + i] = self.levels[i].start_y
                 self.rom[0x2000 + 0x0254 + i] = self.levels[i].flags1
-                self.rom[0x2000 + 0x07B8 + self.banks[1][0x077F + i]] = self.levels[i].flags2
+                # disable saving of flag 2 value until I can figure out why its causing bugs
+                # self.rom[0x2000 + 0x07B8 + self.banks[1][0x077F + i]] = self.levels[i].flags2
                 self.rom[0x2000 + 0x02B1 + i] = self.levels[i].stage_sprite_index
                 self.rom[0x2000 + 0x01F7 + i] = self.levels[i].bg_color
                 self.rom[0x2000 + 0x04DF + i] = self.levels[i].music
