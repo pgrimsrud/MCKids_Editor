@@ -20,6 +20,7 @@ class Level:  # This class needs a lot of clean up.
         self.start_y = 0
         self.flags1 = 0
         self.flags2 = 0
+        self.music = 0
 
         self.bg_color = 0
         self.card_id_1 = 0xFF
@@ -238,14 +239,16 @@ class Level:  # This class needs a lot of clean up.
             for j in range(0, 64 * (i + 1) - len(level.tile_palette_map)):
                 level.tile_palette_map.append(0)
 
+        level_index = rom_file.level_index_lookup[stage_num]
         level.stage_sprite_index = rom_file.banks[1][0x2B1 + stage_num]
         level.start_x = rom_file.banks[1][0x013D + stage_num]
         level.start_y = rom_file.banks[1][0x019A + stage_num]
         level.bg_color = rom_file.banks[1][0x01F7 + stage_num]
         level.flags1 = rom_file.banks[1][0x0254 + stage_num]
-        level.flags2 = rom_file.banks[1][0x07B8 + stage_num]  # Should this be indexed by stage_index?
-        level.card_1_ids = rom_file.banks[1][0x0457 + stage_num]
-        level.card_2_ids = rom_file.banks[1][0x04B4 + stage_num]
+        level.flags2 = rom_file.banks[1][0x07B8 + level_index]
+        level.card_id_1 = rom_file.banks[1][0x0425 + stage_num]
+        level.card_id_2 = rom_file.banks[1][0x0482 + stage_num]
+        level.music = rom_file.banks[1][0x04DF + stage_num]
 
         level.decompress(stage_data)
 

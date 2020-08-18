@@ -2,6 +2,23 @@ import tkinter as tk
 from colors import colors
 
 class LevelProperties:
+    SONG_NAMES = [
+        'Level theme 2',
+        'Map theme',
+        'Level theme 3',
+        'Ronalds bag of magic',
+        'Cutscene (stilongs)',
+        'Level complete',
+        'Bonus theme',
+        'Main theme',
+        'Level theme 4',
+        'Volcano theme',
+        'Level theme 1',
+        'Death jingle',
+        'Level complete',
+        'Next player'
+    ]
+
     def __init__(self, parent, editor):
         self.parent = parent
         self.editor = editor
@@ -11,12 +28,11 @@ class LevelProperties:
         self.level_index = tk.StringVar()
         self.level_start_x = tk.StringVar()
         self.level_start_y = tk.StringVar()
-        self.card1_world = tk.IntVar()
-        self.card1_number = tk.IntVar()
-        self.card2_world = tk.IntVar()
-        self.card2_number = tk.IntVar()
+        self.card1_id = tk.StringVar()
+        self.card2_id = tk.StringVar()
         self.bg_color = tk.IntVar()
         self.sprite_set = tk.IntVar()
+        self.music = tk.StringVar()
 
         self.flags = [tk.IntVar(), tk.IntVar(), tk.IntVar(), tk.IntVar(), tk.IntVar(), tk.IntVar(), tk.IntVar(), tk.IntVar()]
         self.flags2 = [tk.IntVar(), tk.IntVar(), tk.IntVar(), tk.IntVar(), tk.IntVar(), tk.IntVar(), tk.IntVar(), tk.IntVar()]
@@ -43,31 +59,34 @@ class LevelProperties:
             tk.Checkbutton(self.flag_frame2, variable=self.flags2[i], command=self.save_flags).pack(side=tk.LEFT)
         self.flag_frame2.grid(row=4, columnspan=4)
 
-        card_options = ['No card', 1, 2, 3, 4, 5, 6]
         tk.Label(frame, text="Card 1:").grid(row=5)
-        tk.OptionMenu(frame, self.card1_world, *card_options).grid(row=5, column=1)
-        tk.OptionMenu(frame, self.card1_number, *card_options).grid(row=5, column=2)
-        tk.Label(frame, text="Card 2:").grid(row=6)
-        tk.OptionMenu(frame, self.card2_world, *card_options).grid(row=6, column=1)
-        tk.OptionMenu(frame, self.card2_number, *card_options).grid(row=6, column=2)
+        tk.Entry(frame, textvariable=self.card1_id, width=5).grid(row=5, column=1)
+        tk.Label(frame, text="Card 2:").grid(row=5, column=2)
+        tk.Entry(frame, textvariable=self.card2_id, width=5).grid(row=5, column=3)
 
-        tk.Label(frame, text="BG color:").grid(row=7)
+        tk.Label(frame, text="BG color:").grid(row=6)
         color_options = []
         for i in range(len(colors)):
             color_options.append(i)
         self.bg_color_picker = tk.OptionMenu(frame, self.bg_color, *color_options, command=self.update_color)
-        self.bg_color_picker.grid(row=7, column=1)
+        self.bg_color_picker.grid(row=6, column=1)
 
-        tk.Label(frame, text="Sprite set:").grid(row=8)
+        tk.Label(frame, text="Sprite set:").grid(row=6, column=2)
         sprite_set_options = [3, 4, 5, 6, 7, 8, 9, 11, 12, 15, 16, 19]
-        self.sprite_set_picker = tk.OptionMenu(frame, self.sprite_set, *sprite_set_options,
-                                               command=self.update_sprite_set).grid(row=8, column=1)
+        tk.OptionMenu(frame, self.sprite_set, *sprite_set_options,
+                                               command=self.update_sprite_set).grid(row=6, column=3)
+
+        tk.Label(frame, text="Music:").grid(row=9)
+        tk.OptionMenu(frame, self.music, *LevelProperties.SONG_NAMES, command=self.update_music).grid(row=9, column=1)
 
         frame.pack()
 
     def update_sprite_set(self, event):
         self.level.stage_sprite_index = self.sprite_set.get()
         self.editor.draw_stage()
+
+    def update_music(self, event):
+        self.level.music = LevelProperties.SONG_NAMES.index(self.music.get())
 
     def update_color(self, event):
         color = colors[self.bg_color.get()]
@@ -92,7 +111,12 @@ class LevelProperties:
         self.level_start_x.set(self.level.start_x)
         self.level_start_y.set(self.level.start_y)
 
+        self.bg_color.set(self.level.bg_color)
+        self.update_color(None)
         self.sprite_set.set(self.level.stage_sprite_index)
+        self.card1_id.set(self.level.card_id_1)
+        self.card2_id.set(self.level.card_id_2)
+        self.music.set(LevelProperties.SONG_NAMES[self.level.music])
 
         self.load_flags()
 
