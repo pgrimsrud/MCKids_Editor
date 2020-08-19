@@ -1,4 +1,5 @@
-sprite_names = ['???', 'Finish line arch',
+sprite_names = ['???',
+                'Finish line arch',
                 '???',
                 '???',
                 '???',

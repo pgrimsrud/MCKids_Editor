@@ -27,7 +27,7 @@ class SpriteTools:
 
         tk.Label(self.frame, text="Sprite ID:").grid(row=3, column=2)
         sprite_options = self.__get_sprite_options()
-        tk.OptionMenu(self.frame, self.selected_spawn_id, *sprite_options).grid(row=3, column=3)
+        self.sprite_option = tk.OptionMenu(self.frame, self.selected_spawn_id, *sprite_options, command=self.sprite_option_selected).grid(row=3, column=3)
 
         sprite_buttons = tk.Frame(self.frame)
         tk.Button(sprite_buttons, text="Delete", command=self.delete_button_clicked).pack(side=tk.LEFT, padx=10)
@@ -51,6 +51,10 @@ class SpriteTools:
             if sprite_names[i] == name:
                 return i
         return 0
+
+    def sprite_option_selected(self, event):
+        self.save_sprite()
+        self.editor.draw_stage()
 
     def load_from_level(self, level):
         self.level = level
