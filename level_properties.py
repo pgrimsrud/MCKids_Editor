@@ -1,5 +1,6 @@
 import tkinter as tk
 from colors import colors
+from colorpicker import ColorPicker
 
 class LevelProperties:
     SONG_NAMES = [
@@ -68,8 +69,9 @@ class LevelProperties:
         color_options = []
         for i in range(len(colors)):
             color_options.append(i)
-        self.bg_color_picker = tk.OptionMenu(frame, self.bg_color, *color_options, command=self.update_color)
-        self.bg_color_picker.grid(row=6, column=1)
+        # self.bg_color_picker = tk.OptionMenu(frame, self.bg_color, *color_options, command=self.update_color)
+        # self.bg_color_picker.grid(row=6, column=1)
+        tk.Button(frame, text="Select", command=self.pick_bg_color).grid(row=6, column=1)
 
         tk.Label(frame, text="Sprite set:").grid(row=6, column=2)
         sprite_set_options = [3, 4, 5, 6, 7, 8, 9, 11, 12, 15, 16, 19]
@@ -85,13 +87,20 @@ class LevelProperties:
         self.level.stage_sprite_index = self.sprite_set.get()
         self.editor.draw_stage()
 
+    def pick_bg_color(self):
+        cp = ColorPicker(self.parent, "Select color", self.select_bg_color)
+
+    def select_bg_color(self, color):
+        self.level.set_background_color(color)
+        self.editor.draw_stage()
+
     def update_music(self, event):
         self.level.music = LevelProperties.SONG_NAMES.index(self.music.get())
 
     def update_color(self, event):
         color = colors[self.bg_color.get()]
         hexcolor = '#%02x%02x%02x' % (color[0], color[1], color[2])
-        self.bg_color_picker.config(bg=hexcolor)
+        # self.bg_color_picker.config(bg=hexcolor)
         self.level.set_background_color(self.bg_color.get())
         self.editor.draw_stage()
 
