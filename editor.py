@@ -11,6 +11,7 @@ from tile_tools import TileTools
 from resize_tool import ResizeTool
 from sprite_tools import SpriteTools
 from level_properties import LevelProperties
+from zippers import ZipperMapEditor
 import webbrowser
 
 class Editor:
@@ -93,6 +94,7 @@ class Editor:
         edit_menu = Menu(self.menu_bar, tearoff=0)
         edit_menu.add_command(label="Resize level", command=self.resize_stage_clicked)
         edit_menu.add_command(label="Clear level", command=self.clear_stage_clicked)
+        edit_menu.add_command(label="Zipper map", command=self.show_zipper_map)
         self.menu_bar.add_cascade(label="Edit", menu=edit_menu)
 
         self.level_menu = Menu(self.menu_bar, tearoff=0)
@@ -112,6 +114,9 @@ class Editor:
 
     def link_clicked(self, event):
         webbrowser.open_new(event.widget.cget("text"))
+
+    def show_zipper_map(self):
+        ZipperMapEditor(self.window, self)
 
     def about_button_clicked(self):
         about_window = tk.Toplevel(self.window)
