@@ -196,15 +196,44 @@ class Editor:
         filename = filedialog.asksaveasfilename(defaultextension=".mcl", initialfile=".mcl", filetypes=[("M.C. Kids Level", "*.mcl"), ("All Files", "*")])
         if len(filename):
             with open(filename, "wb") as fp:
-                fp.write(bytearray(self.rom_file.levels[self.current_stage].compress()))
+                level = self.rom_file.levels[self.current_stage]
+                header = [0x4D, 0x43, 0x4C, 0x56,  # MCLV
+                          0x01,                    # file format version
+                          level.start_x,
+                          level.start_y,
+                          level.flags1,
+                          level.flags2,
+                          level.stage_sprite_index,
+                          level.bg_color,
+                          level.music]
+                fp.write(bytearray(header))
+                fp.write(bytearray(level.compress()))
 
     def import_level_clicked(self):
         filename = filedialog.askopenfilename(defaultextension=".mcl", filetypes=[("M.C. Kids Level", "*.mcl"), ("All Files", "*")])
         if len(filename):
             with open(filename, "rb") as fp:
                 data = fp.read()
-                self.rom_file.levels[self.current_stage] = Level.load_level(self.current_stage, data, self.rom_file)
-                self.draw_stage()
+                if data[0:4] == bytearray('MCLV', encoding='utf8'):
+                    # New type
+                    if data[4] != 0x01:
+                        messagebox.showerror("Error", "The version used to save this level, "
+                                                      "is higher than this version of the editor understands.")
+                        return
+                    level = Level.load_level(self.current_stage, data[12:], self.rom_file)
+                    level.start_x = data[5]
+                    level.start_y = data[6]
+                    level.flags1 = data[7]
+                    level.flags2 = data[8]
+                    level.stage_sprite_index = data[9]
+                    level.bg_color = data[10]
+                    level.music = data[11]
+                    self.rom_file.levels[self.current_stage] = level
+                    # Reload palettes to make colors correct
+                    self.draw_stage()
+                else:
+                    self.rom_file.levels[self.current_stage] = Level.load_level(self.current_stage, data, self.rom_file)
+                    self.draw_stage()
 
     def deselect(self):
         self.tile_tools.select_tile(None)
