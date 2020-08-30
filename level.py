@@ -45,6 +45,7 @@ class Level:  # This class needs a lot of clean up.
                 stage_spawn_info[i], stage_spawn_info[spawn_count + i],
                 stage_spawn_info[spawn_count * 2 + i], stage_spawn_info[spawn_count * 3 + i]
             ))
+        self.spawn_points.sort(key=SpawnPoint.get_index)
 
     def compress(self):
         output = [self.width, self.height,
@@ -53,10 +54,7 @@ class Level:  # This class needs a lot of clean up.
                   self.tile_set_indices[2],
                   self.tile_set_indices[3]]
 
-        def get_x(element):
-            return element.x
-
-        self.spawn_points.sort(key=get_x)
+        self.spawn_points.sort(key=SpawnPoint.get_index)
 
         spawn_count = len(self.spawn_points)
         stage_data = [spawn_count]
@@ -67,7 +65,7 @@ class Level:  # This class needs a lot of clean up.
         for i in range(spawn_count):
             stage_data.append(self.spawn_points[i].sprite_index)
         for i in range(spawn_count):
-            stage_data.append(self.spawn_points[i].index)
+            stage_data.append(i)
 
         stage_data += self.tile_map
 

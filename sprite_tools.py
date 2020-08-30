@@ -8,16 +8,23 @@ class SpriteTools:
         self.selected_spawn_x = tk.StringVar()
         self.selected_spawn_y = tk.StringVar()
         self.selected_spawn_id = tk.StringVar()
+        self.selected_spawn_index = tk.StringVar()
         self.level = None
         self.index = -1
         self.editor = editor
 
         self.frame = tk.Frame(parent)
-        tk.Label(self.frame, text="Sprites:").grid(row=0)
         self.sprite_list = tk.Listbox(self.frame, selectmode=tk.SINGLE, width=30)
         self.sprite_list.configure(exportselection=False)
         self.sprite_list.bind('<<ListboxSelect>>', self.edit_sprite)
-        self.sprite_list.grid(row=1, pady=5, rowspan=5)
+        self.sprite_list.grid(row=0, pady=5, rowspan=5)
+
+        tk.Label(self.frame, text="Index:").grid(row=0, column=2)
+        index_frame = tk.Frame(self.frame)
+        tk.Button(index_frame, text="-", command=self.move_sprite_up).pack(side=tk.LEFT)
+        tk.Label(index_frame, textvariable=self.selected_spawn_index, width=4).pack(side=tk.LEFT)
+        tk.Button(index_frame, text="+", command=self.move_sprite_down).pack(side=tk.LEFT)
+        index_frame.grid(row=0, column=3)
 
         tk.Label(self.frame, text="Spawn X:").grid(row=1, column=2)
         tk.Entry(self.frame, textvariable=self.selected_spawn_x).grid(row=1, column=3)
@@ -35,6 +42,30 @@ class SpriteTools:
         sprite_buttons.grid(row=4, column=2, columnspan=2)
 
         self.frame.pack()
+
+    def move_sprite_up(self):
+        if self.index > 0:
+            this_sprite = self.level.spawn_points[self.index]
+            self.level.spawn_points[self.index] = self.level.spawn_points[self.index - 1]
+            self.level.spawn_points[self.index - 1] = this_sprite
+            self.level.spawn_points[self.index].index = self.index
+            self.level.spawn_points[self.index - 1].index = self.index - 1
+            self.load_from_level(self.level)
+            self.sprite_list.selection_clear(0, tk.END)
+            self.index -= 1
+            self.sprite_list.selection_set(self.index)
+
+    def move_sprite_down(self):
+        if self.index < (len(self.level.spawn_points) - 1):
+            this_sprite = self.level.spawn_points[self.index]
+            self.level.spawn_points[self.index] = self.level.spawn_points[self.index + 1]
+            self.level.spawn_points[self.index + 1] = this_sprite
+            self.level.spawn_points[self.index].index = self.index
+            self.level.spawn_points[self.index + 1].index = self.index + 1
+            self.load_from_level(self.level)
+            self.sprite_list.selection_clear(0, tk.END)
+            self.index += 1
+            self.sprite_list.selection_set(self.index)
 
     def __get_sprite_options(self):
         self.sprite_lookup = []
@@ -60,7 +91,8 @@ class SpriteTools:
         self.level = level
         self.sprite_list.delete(0, tk.END)
         for i in range(len(level.spawn_points)):
-            self.sprite_list.insert(i, f'{level.spawn_points[i].x:03d}x{level.spawn_points[i].y:03d}: {sprite_names[level.spawn_points[i].sprite_index]}')
+            self.sprite_list.insert(i, f'{i}: {level.spawn_points[i].x:03d}x{level.spawn_points[i].y:03d} '
+                                       f'{sprite_names[level.spawn_points[i].sprite_index]}')
         self.sprite_list.select_set(self.index)
 
     def edit_sprite(self, event):
@@ -72,6 +104,7 @@ class SpriteTools:
             self.selected_spawn_x.set(self.level.spawn_points[self.index].x)
             self.selected_spawn_y.set(self.level.spawn_points[self.index].y)
             self.selected_spawn_id.set(sprite_names[self.level.spawn_points[self.index].sprite_index])
+            self.selected_spawn_index.set(self.index)
             self.editor.draw_stage()
         else:
             self.index = -1

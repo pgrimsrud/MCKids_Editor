@@ -371,11 +371,15 @@ class Editor:
             for j in range(sprite.width * sprite.height):
                 x = level.spawn_points[i].x * 16 * 2 + (j % sprite.width) * 8 * 2
                 y = level.spawn_points[i].y * 16 * 2 + int(j / sprite.width) * 8 * 2 - ((sprite.height - 2) * 16)
+                if level.spawn_points[i].sprite_index in [43, 120]:
+                    y += 32
                 self.rom_file.get_sprite_chr(sprite.chr_pointers[j], sprite.palette_index, level).draw(self.stage_img, x, y, 0)
             if i == self.sprite_tools.index:
                 stage_draw = ImageDraw.Draw(self.stage_img)
                 x = level.spawn_points[i].x * 32
                 y = level.spawn_points[i].y * 32 - ((sprite.height - 2) * 16)
+                if level.spawn_points[i].sprite_index in [43, 120]:
+                    y += 32
                 stage_draw.rectangle(((x, y), (x + sprite.width * 16, y + sprite.height * 16)), outline="red", width=2)
 
     def draw_kid(self):
