@@ -4,3 +4,7 @@ class SpawnPoint:
         self.y = y
         self.sprite_index = sprite_index
         self.index = index
+
+    @staticmethod
+    def get_index(element):
+        return element.index
