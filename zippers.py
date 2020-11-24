@@ -190,8 +190,8 @@ class ZipperMapEditor:
         self.save_to_rom()
 
     def save_to_rom(self):
-        ptr = 0x2000 + 0x13EE
-        rom = self.editor.rom_file.rom
+        ptr = 0x13EE
+        rom = self.editor.rom_file.banks[1]
         for stage in self.map.stages:
             rom[ptr] = 0xFE
             rom[ptr+1] = stage.stage_id
