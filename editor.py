@@ -446,7 +446,15 @@ class Editor:
     def save_rom_button_clicked(self):
         filename = filedialog.asksaveasfilename(defaultextension=".nes", initialfile=".nes", filetypes=[("Nintendo Entertainment System ROM", "*.nes"), ("All Files", "*")])
         if len(filename) > 0:
-            if self.rom_file.write_rom(filename) == RomFile.ERROR_COULD_NOT_FIT_ALL_STAGES:
+            result = self.rom_file.write_rom(filename)
+            if result == RomFile.ERROR_COULD_NOT_FIT_ALL_STAGES and self.rom_file.chr_bank_count == 0x10:
+                # If there was no room, and we were on original number of CHR banks,
+                # add 16 more banks and try again.
+                self.rom_file.chr_bank_count += 0x10
+                self.rom_file.rom.extend(bytes(0x20000))
+                result = self.rom_file.write_rom(filename)
+
+            if result == RomFile.ERROR_COULD_NOT_FIT_ALL_STAGES:
                 messagebox.showerror("Error", "Could not fit all stages!")
 
     def set_next_click_callback(self, callback):

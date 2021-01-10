@@ -2,6 +2,7 @@ from chr import Chr
 from fast_compression import fast_decompress, fast_compress, fast_compression_length
 from sprite import Sprite
 from tileset import TileSet
+from copy import deepcopy
 
 
 class RomFile:
@@ -37,7 +38,9 @@ class RomFile:
         self.levels = [None] * 0x5D
 
         self.rom = open(filename, "rb").read()
-        self.ines_header = self.rom[0:0x10]
+        self.ines_header = bytearray(self.rom[0:0x10])
+        self.prg_bank_count = self.ines_header[4]
+        self.chr_bank_count = self.ines_header[5]
         self.rom = bytearray(self.rom[0x10:])
         self.load_banks_from_rom()
 
@@ -98,12 +101,20 @@ class RomFile:
             {'bank': 0x0F, 'start': 0x0000, 'stages': [], 'space_remaining': 0x2000}
         ]
 
+        # Add extra non-original banks
+        if self.chr_bank_count > 0x10:
+            for i in range(0x10, self.chr_bank_count):
+                containers.append({
+                    'bank': i,
+                    'start': 0x0000,
+                    'stages': [],
+                    'space_remaining': 0x2000
+                })
+
         def get_size(obj):
             return obj.get('size')
 
-        by_size = self.stage_pointers.copy()
-        # for stage in by_size:
-
+        by_size = deepcopy(self.stage_pointers)
         for i in range(len(by_size)):
             by_size[i]['placed'] = False
         by_size[7]['placed'] = True
@@ -182,11 +193,18 @@ class RomFile:
         return RomFile.ERROR_NONE
 
     def load_banks_from_rom(self):
-        chr_rom = self.rom[0x20000:]
+        # Check that the size of the ROM file matches the number of banks defined
+        expected = self.prg_bank_count * 0x4000 +  self.chr_bank_count * 0x2000
+        if (len(self.rom) != expected):
+            print("WARNING: Unexpected file size!")
+
+        chr_offset = self.prg_bank_count * 0x4000
+        chr_rom = self.rom[chr_offset:]
         self.banks = []
         self.chr_banks = []
-        for i in range(0, 16):
+        for i in range(0, self.prg_bank_count * 2):
             self.banks.append(self.rom[0x2000 * i: 0x2000 * i + 0x2000])
+        for i in range(0, self.chr_bank_count):
             self.chr_banks.append(chr_rom[0x2000 * i: 0x2000 * i + 0x2000])
 
     def __read_level_names(self):
@@ -278,6 +296,8 @@ class RomFile:
         if result != RomFile.ERROR_NONE:
             return result
         self.__write_level_properties()
+        self.ines_header[4] = self.prg_bank_count
+        self.ines_header[5] = self.chr_bank_count
         with open(filename, "wb") as fp:
             fp.write(bytearray(self.ines_header) + bytearray(self.rom))
 
