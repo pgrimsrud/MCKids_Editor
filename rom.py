@@ -85,6 +85,8 @@ class RomFile:
             })
 
     def resuffle_data(self):
+        self.save_banks_to_rom()
+
         # Containers are sorted by size
         containers = [
             {'bank': 9, 'start': 0x0000, 'stages': [], 'space_remaining': 0x07E5},
@@ -191,6 +193,21 @@ class RomFile:
         # That would cause the editor to not re-compress unless the levels where loaded again
 
         return RomFile.ERROR_NONE
+
+    def save_banks_to_rom(self):
+        # Check that the size of the ROM file matches the number of banks defined
+        expected = self.prg_bank_count * 0x4000 +  self.chr_bank_count * 0x2000
+        if (len(self.rom) != expected):
+            print("WARNING: Unexpected file size!")
+
+        chr_offset = self.prg_bank_count * 0x4000
+        chr_rom = self.rom[chr_offset:]
+        for i in range(0, self.prg_bank_count * 2):
+            for j in range (0, 0x2000):
+                self.rom[0x2000 * i + j] = self.banks[i][j]
+        for i in range(0, self.chr_bank_count):
+            for j in range (0, 0x2000):
+                self.rom[self.prg_bank_count * 0x4000 + 0x2000 * i + j] = self.chr_banks[i][j]
 
     def load_banks_from_rom(self):
         # Check that the size of the ROM file matches the number of banks defined
